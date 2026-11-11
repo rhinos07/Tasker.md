@@ -84,6 +84,12 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
         </span>
       )}
       {k.recurrence && <span className="meta">🔁 {k.recurrence}</span>}
+      {k.reminders.map((r) => (
+        <span key={`${r.date ?? ""}${r.time}`} className="meta" title="Erinnerung (Benachrichtigung, solange die App läuft)">
+          ⏰ {r.date ? `${r.date} ` : ""}
+          {r.time}
+        </span>
+      ))}
       {k.tags.map((tag) => (
         <span key={tag} className="tag">
           {tag}

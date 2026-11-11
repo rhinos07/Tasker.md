@@ -12,6 +12,7 @@ pub mod jira;
 pub mod obsidian;
 pub mod quick;
 pub mod recur;
+pub mod reminders;
 pub mod task;
 pub mod today;
 pub mod upcoming;

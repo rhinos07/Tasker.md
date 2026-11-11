@@ -102,6 +102,11 @@
     "dailyNoteDate": true,
     "dailyNoteFormats": ["%Y-%m-%d", "%Y%m%d"]
   },
+  "reminders": {
+    "enabled": true,
+    "briefing": ["08:00"],
+    "lateMinutes": 60
+  },
   "hotkeys": {
     "quickCapture": "CmdOrCtrl+Alt+Space"
   },

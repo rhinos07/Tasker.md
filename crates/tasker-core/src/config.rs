@@ -25,6 +25,24 @@ pub struct Config {
     pub obsidian: ObsidianConfig,
     pub tray: TrayConfig,
     pub inherit: InheritConfig,
+    pub reminders: RemindersConfig,
+}
+
+/// Erinnerungen über ⏰ und Tagesbriefing (System-Benachrichtigungen, nur bei laufender App)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RemindersConfig {
+    pub enabled: bool,
+    /// Uhrzeiten `HH:MM` für die Tageszusammenfassung; leer = kein Briefing
+    pub briefing: Vec<String>,
+    /// Verpasste Erinnerungen (App lief nicht) werden höchstens so viele Minuten später nachgeholt
+    pub late_minutes: u32,
+}
+
+impl Default for RemindersConfig {
+    fn default() -> Self {
+        Self { enabled: true, briefing: vec!["08:00".into()], late_minutes: 60 }
+    }
 }
 
 /// Nur für die Anzeige abgeleitete Werte; in die Dateien wird davon nichts geschrieben.
@@ -388,6 +406,7 @@ impl Config {
             obsidian: ObsidianConfig::default(),
             tray: TrayConfig::default(),
             inherit: InheritConfig::default(),
+            reminders: RemindersConfig::default(),
             filters: vec![
                 crate::filter::SavedFilter { name: "Telefonate".into(), query: "kontext:@telefon & !warten".into() },
                 crate::filter::SavedFilter {

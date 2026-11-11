@@ -19,6 +19,8 @@ export interface Task {
   created: string | null;
   priority: Priority;
   recurrence: string | null;
+  /** ⏰ HH:MM (am Tag der Aufgabe) oder mit eigenem Datum */
+  reminders: { date: string | null; time: string }[];
   id: string | null;
   dependsOn: string[];
   tags: string[];

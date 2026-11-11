@@ -90,6 +90,12 @@ fn validate(cfg: &Config) -> Result<(), String> {
     if !(1..=60).contains(&cfg.calendar.days_ahead) {
         return Err("Kalender: 1 bis 60 Tage im Voraus.".into());
     }
+    if cfg.reminders.briefing.iter().any(|t| parse_hm(t).is_none()) {
+        return Err("Tagesbriefing: Uhrzeiten als HH:MM, eine pro Zeile.".into());
+    }
+    if cfg.reminders.late_minutes > 24 * 60 {
+        return Err("Erinnerungen: höchstens 1440 Minuten nachholen.".into());
+    }
     if cfg.projects.review_after_days < 1 {
         return Err("Review-Intervall muss mindestens 1 Tag sein.".into());
     }

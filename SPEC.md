@@ -54,7 +54,8 @@ Einstufung: **MVP** = erste Version · **P2** = Phase 2 · **–** = nicht gepla
 | Globales Tastenkürzel, Tastaturbedienung | 🟡 | ✅ | ✅ | ✅ **MVP** (6.6) |
 | Wiederkehrende Aufgaben 🔁 | ✅ | ✅ | ✅ | ✅ **MVP** (einfache Regeln) |
 | Meeting-Notizen | ✅ (Premium) | ❌ | ❌ | – |
-| Widgets, Erinnerungen per Push | ✅ | ✅ | ✅ | – |
+| Erinnerungen (System-Benachrichtigung) | ✅ `⏰` | ✅ | ✅ | ✅ `⏰` und Tagesbriefing (6.7) |
+| Widgets | ✅ | ✅ | ✅ | – |
 | Mobile | ✅ | ✅ | ✅ | – |
 | CLI / MCP-Server | ✅ | 🟡 REST-API | ✅ API | **P2** |
 | Datenschutz | lokal | lokal | Cloud | lokal, keine Telemetrie |
@@ -334,6 +335,22 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
   - Das Ausschalten entfernt den Eintrag vollständig. Eine Abschaltung im Task-Manager zeigt die Einstellung als „aus“.
 - **Nur eine Instanz:** Ein zweiter Start holt das laufende Fenster nach vorn.
 - Ohne Tray öffnet sich das Fenster immer.
+
+### 6.7 Erinnerungen und Tagesbriefing (abschaltbar)
+- **Syntax:**
+  - `⏰ HH:MM` erinnert am Tag aus ⏳ (auch dem Datum einer Tagesnotiz), sonst 📅, sonst 🛫. Ohne Datum gibt es keine Erinnerung.
+  - `⏰ YYYY-MM-DD HH:MM` gilt an genau diesem Tag (Format des Plugins „Reminder“).
+  - Mehrere ⏰ pro Aufgabe sind erlaubt. ⏰ zählt zu den Metadaten: Die Priorität steht davor, die Beschreibung bleibt ohne ⏰.
+- **Wiederholung:** Beim Abhaken mit 🔁 bleibt `⏰ HH:MM` gleich. Ein Datum in ⏰ verschiebt sich um denselben Abstand in Tagen wie die übrigen Daten. Ohne Bezugsdatum bleibt nur die Uhrzeit.
+- **Zustellung:**
+  - Als System-Benachrichtigung, solange die App läuft, auch versteckt im Infobereich (Autostart, 6.6).
+  - Der Planer prüft alle 30 Sekunden. Erledigte Aufgaben erinnern nie, der Demo-Vault nie.
+  - Gezeigte Erinnerungen merkt sich `reminders.json` im App-Datenordner, nie der Vault. So kommt nach einem Neustart nichts doppelt.
+  - Verpasste Erinnerungen (die App lief nicht) kommen beim nächsten Start nur, wenn sie höchstens `lateMinutes` her sind (Standard 60), mit dem Hinweis „war um HH:MM“.
+  - Mehr als fünf auf einmal werden ab der fünften zusammengefasst.
+  - Abhaken direkt aus der Benachrichtigung geht nicht, weil die Plattform-Benachrichtigungen das nicht hergeben.
+- **Tagesbriefing:** Zu einstellbaren Uhrzeiten (Standard 08:00) kommt eine Zusammenfassung aus der Heute-Ansicht, z. B. „3 geplant, 1 überfällig · nächster Termin 09:00 Daily · erster Zeitblock 10:00“.
+- **Filter:** `erinnerung` zeigt Aufgaben mit ⏰.
 
 ## 7. Google Kalender (nur lesen)
 - OAuth 2.0 Desktop-Flow (Loopback-Redirect), Scope `calendar.readonly`

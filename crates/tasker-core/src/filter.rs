@@ -71,6 +71,8 @@ enum Term {
     Scheduled(DateCond),
     Blocked,
     InProgress,
+    /// hat ⏰
+    Reminder,
     Waiting,
     Jira(Option<String>),
     Text(String),
@@ -131,7 +133,7 @@ fn read_value(chars: &[char], mut i: usize) -> Result<(String, usize), FilterErr
 
 /// Felder, die auch ohne Wert stehen dürfen.
 const FLAGS: &[&str] =
-    &["blockiert", "blocked", "warten", "waiting", "inarbeit", "doing", "jira", "prio", "priority", "fällig", "faellig", "due", "geplant", "scheduled"];
+    &["blockiert", "blocked", "warten", "waiting", "inarbeit", "doing", "erinnerung", "reminder", "jira", "prio", "priority", "fällig", "faellig", "due", "geplant", "scheduled"];
 
 fn tokenize(q: &str) -> Result<Vec<(Tok, usize)>, FilterError> {
     let chars: Vec<char> = q.chars().collect();
@@ -223,6 +225,7 @@ fn term(field: Option<&str>, value: &str, pos: usize) -> Result<Term, FilterErro
         Some("blockiert" | "blocked") if value.is_empty() => Term::Blocked,
         Some("warten" | "waiting") if value.is_empty() => Term::Waiting,
         Some("inarbeit" | "doing") if value.is_empty() => Term::InProgress,
+        Some("erinnerung" | "reminder") if value.is_empty() => Term::Reminder,
         Some("jira") => Term::Jira((!value.is_empty()).then(|| value.to_uppercase())),
         Some(f) => return err(format!("Unbekanntes Feld „{f}“"), pos),
     })
@@ -358,6 +361,7 @@ fn eval(e: &Expr, t: &TaskRef, c: &Ctx) -> bool {
                 Term::Scheduled(d) => date_ok(t.scheduled(), d, c.today),
                 Term::Blocked => t.blocked,
                 Term::InProgress => k.in_progress,
+                Term::Reminder => !k.reminders.is_empty(),
                 Term::Waiting => t.has_tag(&c.cfg.waiting_tag),
                 Term::Jira(None) => c.index.jira_mentions.values().flatten().any(|n| n.path == t.note_path),
                 Term::Jira(Some(key)) => {

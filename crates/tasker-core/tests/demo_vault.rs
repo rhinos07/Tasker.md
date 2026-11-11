@@ -386,3 +386,23 @@ fn obsidian_link_with_and_without_advanced_uri() {
     assert!(!link(&c, rel, 17).exact, "abschaltbar");
     std::fs::remove_dir_all(&c.vault.path).unwrap();
 }
+
+/// Erinnerungen (SPEC 6.7): ⏰ aus dem Demo-Vault, Filter `erinnerung`, Briefing-Text.
+#[test]
+fn reminders_on_demo_vault() {
+    use tasker_core::reminders::{briefing_text, due_reminders};
+    let c = cfg();
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let at = |h: u32, m: u32| today().and_hms_opt(h, m, 0).unwrap();
+    let due = due_reminders(&idx, at(16, 59), at(17, 0));
+    assert_eq!(due.iter().map(|r| r.task.task.description.as_str()).collect::<Vec<_>>(), vec!["Wasser im Garten abstellen"]);
+    assert!(due_reminders(&idx, at(17, 0), at(23, 59)).is_empty());
+
+    let f = tasker_core::filter::Filter::parse("erinnerung").unwrap();
+    let hits = tasker_core::filter::apply(&f, &idx, &c, None, today());
+    assert_eq!(hits.iter().map(|t| t.task.description.as_str()).collect::<Vec<_>>(), vec!["Wasser im Garten abstellen"]);
+
+    let view = tasker_core::today::today_view(&idx, &c, None, today(), &[]);
+    let text = briefing_text(&view, &[], chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap());
+    assert!(text.contains("geplant") && text.contains("überfällig"), "{text}");
+}

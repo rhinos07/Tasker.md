@@ -228,6 +228,20 @@ pub fn next_line(raw: &str, task: &Task, done_on: NaiveDate) -> Result<String, R
             }
         })
         .into_owned();
+    // ⏰ mit Datum um denselben Abstand verschieben; ohne Bezugsdatum gilt die Uhrzeit am neuen ⏳
+    let shift = [(task.due, next.due), (task.scheduled, next.scheduled), (task.start, next.start)]
+        .into_iter()
+        .find_map(|(a, b)| Some(b? - a?));
+    let line = crate::task::RE_REMIND
+        .replace_all(&line, |c: &regex::Captures| match (c.get(1), shift) {
+            (None, _) => c[0].to_string(),
+            (Some(d), Some(delta)) => match NaiveDate::parse_from_str(d.as_str(), "%Y-%m-%d") {
+                Ok(d) => format!("⏰ {} {}", fmt(d + delta), &c[2]),
+                Err(_) => c[0].to_string(),
+            },
+            (Some(_), None) => format!("⏰ {}", &c[2]),
+        })
+        .into_owned();
     let mut line = line.trim_end().to_string();
     if task.due.is_none() && task.scheduled.is_none() && task.start.is_none() {
         if let Some(s) = next.scheduled {
@@ -288,6 +302,17 @@ mod tests {
             next("  - [ ] Bericht #@computer 🔁 every month ➕ 2026-10-01 🆔 ab1 ⛔ xy 📅 2026-10-31"),
             "  - [ ] Bericht #@computer 🔁 every month ➕ 2026-11-11 ⛔ xy 📅 2026-11-30"
         );
+    }
+
+    #[test]
+    fn reminders_move_with_the_task() {
+        // Uhrzeit bleibt, Datum wandert um denselben Abstand in Tagen wie 📅 (hier 30)
+        assert_eq!(
+            next("- [ ] Miete 🔁 every month ⏰ 09:00 ⏰ 2026-10-30 18:00 📅 2026-11-01"),
+            "- [ ] Miete 🔁 every month ⏰ 09:00 ⏰ 2026-11-29 18:00 📅 2026-12-01"
+        );
+        // ohne Bezugsdatum: nur die Uhrzeit, am neuen ⏳
+        assert_eq!(next("- [ ] Rasen 🔁 every week ⏰ 2026-11-11 17:00"), "- [ ] Rasen 🔁 every week ⏰ 17:00 ⏳ 2026-11-18");
     }
 
     #[test]

@@ -27,6 +27,7 @@ const HELP: [string, string][] = [
   ["geplant:heute", "wie fällig, für ⏳"],
   ["blockiert", "wartet auf andere Aufgabe"],
   ["inarbeit", "Status [/] in Arbeit"],
+  ["erinnerung", "hat eine Erinnerung ⏰"],
   ["warten", "Warte-Tag"],
   ["jira", "Notiz erwähnt ein Ticket"],
   ["jira:ABC-123", "zu diesem Ticket"],

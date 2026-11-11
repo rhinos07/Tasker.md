@@ -59,8 +59,19 @@ pub struct Task {
     pub depends_on: Vec<String>,
     /// alle Tags inkl. `#`, z. B. `#@computer`, `#warten`
     pub tags: Vec<String>,
+    /// `⏰ HH:MM` (am Tag der Aufgabe) oder `⏰ YYYY-MM-DD HH:MM`
+    pub reminders: Vec<Reminder>,
     /// die Originalzeile
     pub raw: String,
+}
+
+/// Erinnerung einer Aufgabe. Ohne Datum gilt sie am Tag aus ⏳, sonst 📅, sonst 🛫.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Reminder {
+    pub date: Option<NaiveDate>,
+    /// `HH:MM`
+    pub time: String,
 }
 
 impl Task {
@@ -84,7 +95,11 @@ static RE_DEPENDS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"⛔\u{FE0F}?\s*([A-Za-z0-9_-]+(?:\s*,\s*[A-Za-z0-9_-]+)*)").unwrap()
 });
 static RE_RECUR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"🔁\u{FE0F}?\s*([^📅⏳🛫✅➕❌🔺⏫🔼🔽⏬🆔⛔#]+)").unwrap()
+    Regex::new(r"🔁\u{FE0F}?\s*([^📅⏳🛫✅➕❌🔺⏫🔼🔽⏬🆔⛔⏰#]+)").unwrap()
+});
+/// `⏰ 09:00` oder `⏰ 2026-11-12 09:00`
+pub(crate) static RE_REMIND: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"⏰\u{FE0F}?\s*(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2})\b").unwrap()
 });
 static RE_TAG: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?:^|\s)(#[^\s#,;:!?()\[\]]+)").unwrap());
@@ -121,6 +136,7 @@ pub fn parse_task_line(line_no: usize, raw: &str) -> Option<Task> {
         id: None,
         depends_on: vec![],
         tags: vec![],
+        reminders: vec![],
         raw: raw.to_string(),
     };
 
@@ -152,8 +168,21 @@ pub fn parse_task_line(line_no: usize, raw: &str) -> Option<Task> {
         }
     }
     t.tags = RE_TAG.captures_iter(&body).map(|c| c[1].to_string()).collect();
+    t.reminders = RE_REMIND
+        .captures_iter(&body)
+        .filter_map(|c| {
+            let time = chrono::NaiveTime::parse_from_str(&c[2], "%H:%M").ok()?;
+            let date = match c.get(1) {
+                Some(d) => Some(date(d.as_str())?),
+                None => None,
+            };
+            Some(Reminder { date, time: time.format("%H:%M").to_string() })
+        })
+        .collect();
 
     let mut desc = body.clone();
+    // ⏰ samt Datum und Uhrzeit aus dem Text nehmen
+    desc = RE_REMIND.replace_all(&desc, " ").into_owned();
     for re in [&*RE_DATE, &*RE_DEPENDS, &*RE_ID, &*RE_RECUR, &*RE_PRIO] {
         desc = re.replace_all(&desc, " ").into_owned();
     }
@@ -221,7 +250,7 @@ impl Priority {
 pub fn set_priority_line(raw: &str, p: Priority) -> Option<String> {
     RE_TASK.captures(raw)?;
     static RE_PRIO: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*(?:🔺|⏫|🔼|🔽|⏬)\u{FE0F}?").unwrap());
-    static RE_META: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s(?:🔁|➕|🛫|⏳|📅|✅|❌|🆔|⛔)").unwrap());
+    static RE_META: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s(?:🔁|➕|🛫|⏳|📅|✅|❌|🆔|⛔|⏰)").unwrap());
     let without = RE_PRIO.replace_all(raw, "").trim_end().to_string();
     let Some(e) = p.emoji() else { return Some(without) };
     Some(match RE_META.find(&without) {
@@ -233,6 +262,29 @@ pub fn set_priority_line(raw: &str, p: Priority) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reminders_both_formats() {
+        let t = parse_task_line(0, "- [ ] Arzt anrufen #@telefon ⏰ 9:00 ⏳ 2026-11-12 ⏰ 2026-11-13 14:30 🔼").unwrap();
+        assert_eq!(t.description, "Arzt anrufen");
+        assert_eq!(t.priority, Priority::Medium);
+        assert_eq!(t.scheduled.unwrap().to_string(), "2026-11-12");
+        assert_eq!(
+            t.reminders,
+            vec![
+                Reminder { date: None, time: "09:00".into() },
+                Reminder { date: NaiveDate::from_ymd_opt(2026, 11, 13), time: "14:30".into() },
+            ]
+        );
+        let r = parse_task_line(0, "- [ ] Gießen 🔁 every day ⏰ 07:30").unwrap();
+        assert_eq!(r.recurrence.as_deref(), Some("every day"), "⏰ beendet die Regel");
+        assert!(parse_task_line(0, "- [ ] Uhr ⏰ 25:00").unwrap().reminders.is_empty());
+        assert_eq!(
+            set_priority_line("- [ ] A ⏰ 09:00", Priority::High).unwrap(),
+            "- [ ] A ⏫ ⏰ 09:00",
+            "Priorität vor ⏰"
+        );
+    }
 
     #[test]
     fn sets_priority_before_metadata() {

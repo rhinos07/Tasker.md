@@ -10,6 +10,7 @@ mod hotkey;
 mod index_cache;
 mod jira;
 mod quick;
+mod reminders;
 mod settings;
 mod today;
 mod tray;
@@ -416,6 +417,7 @@ pub fn run() {
             if !(tray.is_ok() && autostart::start_minimized(std::env::args())) {
                 tray::show_main(app.handle());
             }
+            reminders::start(app.handle().clone());
             Ok(())
         })
         .manage(watcher::WatchState::default())

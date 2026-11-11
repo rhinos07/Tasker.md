@@ -33,6 +33,11 @@ fn write_blocks(path: &Path, blocks: &[TimeBlock]) -> Result<(), String> {
     tasker_core::edit::write_atomic(path, &text).map_err(|_| "Zeitblöcke nicht schreibbar.".into())
 }
 
+/// Zeitblöcke wie gespeichert (für das Tagesbriefing).
+pub(crate) fn current_blocks(app: &tauri::AppHandle, demo: bool) -> Vec<TimeBlock> {
+    blocks_path(app, demo).map(|p| read_blocks(&p)).unwrap_or_default()
+}
+
 pub(crate) fn parse_scope(scope: Option<&str>) -> Option<Scope> {
     match scope {
         Some("work") => Some(Scope::Work),

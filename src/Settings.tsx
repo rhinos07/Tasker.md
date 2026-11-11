@@ -37,6 +37,7 @@ interface Config {
   obsidian: { useAdvancedUri: string };
   tray: { closeToTray: boolean };
   inherit: { frontmatterTags: boolean; dailyNoteDate: boolean; dailyNoteFormats: string[] };
+  reminders: { enabled: boolean; briefing: string[]; lateMinutes: number };
 }
 
 interface SettingsData {
@@ -45,11 +46,12 @@ interface SettingsData {
   config: Config;
 }
 
-export type Tab = "vault" | "gtd" | "focus" | "jira" | "calendar" | "keys";
+export type Tab = "vault" | "gtd" | "focus" | "reminders" | "jira" | "calendar" | "keys";
 const TABS: { id: Tab; label: string }[] = [
   { id: "vault", label: "Vault" },
   { id: "gtd", label: "GTD" },
   { id: "focus", label: "Heute & Fokus" },
+  { id: "reminders", label: "Erinnerungen" },
   { id: "jira", label: "Jira" },
   { id: "calendar", label: "Kalender" },
   { id: "keys", label: "Bedienung" },
@@ -123,6 +125,7 @@ export default function Settings({
           workPaths: lines(d.config.areas.workPaths),
           contexts: lines(d.config.contexts),
           projectKeys: lines(d.config.jira.projectKeys),
+          briefing: lines(d.config.reminders.briefing),
         });
       },
       (e) => setError(String(e)),
@@ -174,6 +177,7 @@ export default function Settings({
       timeline: c.timeline,
       focus: c.focus,
       inherit: c.inherit,
+      reminders: { enabled: c.reminders.enabled, briefing: unlines(lists.briefing), lateMinutes: c.reminders.lateMinutes },
       jira: {
         baseUrl: c.jira.baseUrl.trim(),
         jql: c.jira.jql,
@@ -292,6 +296,38 @@ export default function Settings({
                 <input type="checkbox" checked={c.inherit.dailyNoteDate} onChange={(e) => set("inherit", { dailyNoteDate: e.target.checked })} /> Aufgaben
                 ohne Datum in einer Tagesnotiz gelten als am Tag der Notiz geplant (erscheinen auf Heute und in Demnächst)
               </label>
+            </>
+          )}
+          {tab === "reminders" && (
+            <>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={c.reminders.enabled}
+                  onChange={(e) => set("reminders", { enabled: e.target.checked })}
+                />{" "}
+                Erinnerungen und Tagesbriefing als System-Benachrichtigung
+              </label>
+              <p className="muted small">
+                <code>⏰ 09:00</code> an einer Aufgabe erinnert am Tag aus ⏳, sonst 📅, sonst 🛫. <code>⏰ 2026-12-24 09:00</code> gilt
+                an diesem Tag. Ohne Datum keine Erinnerung. Nur, solange die App läuft, am besten per Autostart (Reiter Bedienung).
+                Nur für den eigenen Vault, nicht für den Demo-Vault.
+              </p>
+              <Field label="Tagesbriefing um" hint="Uhrzeiten als HH:MM, eine pro Zeile. Leer = kein Briefing.">
+                {list("briefing")}
+              </Field>
+              <Field
+                label="Verpasste nachholen bis (min)"
+                hint="Lief die App zur Erinnerungszeit nicht, kommt sie beim Start nur, wenn sie höchstens so lange her ist."
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  value={c.reminders.lateMinutes}
+                  onChange={(e) => set("reminders", { lateMinutes: num(e.target.value) })}
+                />
+              </Field>
             </>
           )}
           {tab === "focus" && (

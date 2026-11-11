@@ -244,3 +244,34 @@ fn upcoming_columns_and_drag_to_day_after_tomorrow() {
     assert_eq!(before.lines().count(), after.lines().count());
     std::fs::remove_dir_all(&c.vault.path).unwrap();
 }
+
+/// SPEC 12, Kriterium 7: derselbe Satz wie „Nächste Aktionen“ in der Gruppe @computer; dazu die Felder.
+#[test]
+fn filter_matches_next_actions_and_fields() {
+    use tasker_core::filter::{apply, Filter};
+    let c = cfg();
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let run = |q: &str| -> Vec<String> {
+        let f = Filter::parse(q).unwrap();
+        let mut v: Vec<String> = apply(&f, &idx, &c, None, today()).iter().map(|t| t.task.description.clone()).collect();
+        v.sort();
+        v
+    };
+    let d = idx.dashboard(&c, None, today());
+    let mut expected: Vec<String> = d.next_actions["#@computer"].iter().map(|t| t.task.description.clone()).collect();
+    expected.sort();
+    assert!(!expected.is_empty());
+    assert_eq!(run("kontext:@computer & !blockiert & !warten & prio:keine & fällig:keine"), expected);
+
+    assert_eq!(run("geplant:heute"), vec!["Wasser im Garten abstellen"]);
+    assert_eq!(run("fällig:überfällig"), vec!["Testbericht abgeben"]);
+    assert!(run("fällig:<7d").contains(&"Bauantrag prüfen".to_string()));
+    assert!(run("projekt:garten").contains(&"Bauantrag prüfen".to_string()));
+    assert!(run("bereich:arbeit").contains(&"Testbericht abgeben".to_string()));
+    assert!(!run("bereich:privat").contains(&"Testbericht abgeben".to_string()));
+    assert!(!run("jira:ABC-123").is_empty(), "Ticket in der Notiz erwähnt");
+    assert_eq!(run("blockiert").len(), d.blocked.values().map(Vec::len).sum::<usize>());
+    assert_eq!(run("dachfläche"), vec!["Dachfläche ausmessen"], "freier Text");
+    let all = run("");
+    assert_eq!(run("prio | !prio"), all, "leer und Tautologie passen auf alles");
+}

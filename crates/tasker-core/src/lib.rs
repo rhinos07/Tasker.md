@@ -4,6 +4,7 @@
 pub mod config;
 pub mod create;
 pub mod edit;
+pub mod filter;
 pub mod focus;
 pub mod focuslog;
 pub mod index;

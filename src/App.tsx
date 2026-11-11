@@ -4,13 +4,14 @@ import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
 import TodayView from "./TodayView";
 import UpcomingView from "./UpcomingView";
+import FilterView, { type SavedFilter } from "./FilterView";
 import Settings from "./Settings";
 import QuickEntry, { type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
-type View = "today" | "dashboard" | "projects" | "jira" | "upcoming";
+type View = "today" | "dashboard" | "projects" | "jira" | "upcoming" | "filter-new" | `filter:${string}`;
 type ScopeChoice = Scope | "all";
 
 const VIEWS: { id: View; label: string; ready: boolean }[] = [
@@ -119,6 +120,11 @@ export default function App() {
   const [version, setVersion] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [configVersion, setConfigVersion] = useState(0);
+  const [filters, setFilters] = useState<SavedFilter[]>([]);
+  useEffect(() => {
+    void invoke<SavedFilter[]>("filters_list", { demo }).then(setFilters, () => setFilters([]));
+  }, [demo, configVersion]);
+  const activeFilter = view.startsWith("filter:") ? (filters.find((f) => `filter:${f.name}` === view) ?? null) : null;
 
   // Erster Start ohne Konfiguration: Einrichtung öffnen
   useEffect(() => {
@@ -317,6 +323,22 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <nav className="filters" aria-label="Eigene Filter">
+          <div className="nav-title">Filter</div>
+          {filters.map((f) => (
+            <button
+              key={f.name}
+              className={view === `filter:${f.name}` ? "active" : undefined}
+              onClick={() => setView(`filter:${f.name}`)}
+              title={f.query}
+            >
+              {f.name}
+            </button>
+          ))}
+          <button className={view === "filter-new" ? "active muted" : "muted"} onClick={() => setView("filter-new")}>
+            + Neuer Filter
+          </button>
+        </nav>
         <div className="footer">
           {data && (
             <>
@@ -339,7 +361,7 @@ export default function App() {
       </aside>
       <main>
         <header>
-          <h1>{VIEWS.find((v) => v.id === view)?.label}</h1>
+          <h1>{VIEWS.find((v) => v.id === view)?.label ?? (view === "filter-new" ? "Neuer Filter" : activeFilter?.name)}</h1>
           <div className="segmented" role="group" aria-label="Bereich">
             {(["work", "private", "all"] as const).map((s) => (
               <button key={s} className={scope === s ? "active" : undefined} onClick={() => setScope(s)}>
@@ -362,6 +384,20 @@ export default function App() {
         )}
         {data && view === "projects" && (
           <Projects projects={data.index.projects.filter((p) => scope === "all" || p.scope === scope)} />
+        )}
+        {(view === "filter-new" || activeFilter) && (
+          <FilterView
+            filter={activeFilter}
+            all={filters}
+            scope={scope === "all" ? null : scope}
+            demo={demo}
+            readOnly={data?.source === "demo"}
+            onSaved={(list, open) => {
+              setFilters(list);
+              setView(open ? `filter:${open}` : "dashboard");
+              showToast(open ? `Filter „${open}“ gespeichert` : "Filter gelöscht");
+            }}
+          />
         )}
         {view === "upcoming" && <UpcomingView scope={scope === "all" ? null : scope} demo={demo} />}
         {view === "today" && <TodayView scope={scope === "all" ? null : scope} demo={demo} />}

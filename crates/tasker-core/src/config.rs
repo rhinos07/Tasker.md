@@ -19,6 +19,8 @@ pub struct Config {
     pub timeline: TimelineConfig,
     pub calendar: CalendarConfig,
     pub focus: FocusConfig,
+    /// eigene Filter (SPEC 6.3)
+    pub filters: Vec<crate::filter::SavedFilter>,
 }
 
 /// Kalender (SPEC 7), nur lesen.
@@ -312,6 +314,13 @@ impl Config {
             timeline: TimelineConfig::default(),
             calendar: CalendarConfig::default(),
             focus: FocusConfig::default(),
+            filters: vec![
+                crate::filter::SavedFilter { name: "Telefonate".into(), query: "kontext:@telefon & !warten".into() },
+                crate::filter::SavedFilter {
+                    name: "Diese Woche".into(),
+                    query: "(fällig:<7d | geplant:<7d | fällig:überfällig) & !blockiert".into(),
+                },
+            ],
         }
     }
 }

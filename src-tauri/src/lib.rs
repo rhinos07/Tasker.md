@@ -2,6 +2,7 @@
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
 mod calendar;
+mod filters;
 mod focus;
 mod google;
 mod index_cache;
@@ -343,6 +344,9 @@ pub fn run() {
         .manage(focus::FocusLock::default())
         .invoke_handler(tauri::generate_handler![
             get_overview,
+            filters::filter_run,
+            filters::filters_list,
+            filters::filters_save,
             upcoming::get_upcoming,
             upcoming::schedule_on,
             complete_task,

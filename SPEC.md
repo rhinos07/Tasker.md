@@ -213,13 +213,16 @@ Beispiel: `Müller anrufen morgen @telefon !1 >Gartenhaus` ergibt `- [ ] Müller
 ### 6.3 Eigene Filter
 Gespeicherte Ansichten werden mit einer kleinen Abfragesprache definiert, z. B. `kontext:@telefon & bereich:arbeit & !blockiert`.
 
-- Operatoren: `&`, `|`, `!`, Klammern
+- Operatoren: `!` vor `&` vor `|`, dazu Klammern. Zwei Begriffe ohne Operator sind mit „und“ verknüpft. Groß- und Kleinschreibung zählt nicht.
 - Felder:
   - `kontext`, `tag`, `bereich`, `projekt`, `pfad`
-  - `prio` (`hoch | mittel | keine`)
-  - `fällig` und `geplant` (`heute | überfällig | <7d | keine`)
-  - `blockiert`, `warten`, `jira` (Aufgabe oder Notiz erwähnt ein Ticket), `jira:ABC-123` (Projekt hat dieses Ticket im Feld `jira`)
-- Die festen Abschnitte aus 5.2 sind intern als solche Filter definiert. Es gibt also nur eine Filter-Engine.
+  - `prio` (`hoch | mittel | niedrig | keine`, ohne Wert: Priorität gesetzt)
+  - `fällig` und `geplant` (`heute | überfällig | <7d | keine | JJJJ-MM-TT`, ohne Wert: Datum gesetzt)
+  - `blockiert`, `warten`, `jira` (Aufgabe oder Notiz erwähnt ein Ticket), `jira:ABC-123` (Zeile oder Notiz erwähnt das Ticket, oder das Projekt hat es im Feld `jira`)
+  - `bereich:arbeit` bzw. `bereich:privat` passt auch auf den Bereichsschalter (SPEC 3.2), sonst auf den Namen des Bereichs
+  - Werte mit Leerzeichen in Anführungszeichen, z. B. `projekt:"Release 2.0"`; ein Wort ohne Feld sucht in der Beschreibung
+- Ein Filter zeigt offene Aufgaben ohne Journal; der Schalter Arbeit/Privat/Alle gilt zusätzlich. Fehler werden mit Position angezeigt, ein fehlerhafter Filter lässt sich nicht speichern.
+- Die festen Abschnitte aus 5.2 lassen sich als solche Filter ausdrücken; ein Akzeptanztest sichert, dass beide dieselbe Menge liefern (Kriterium 7).
 - Gespeicherte Filter erscheinen in der Seitenleiste und liegen in der lokalen Konfiguration.
 
 ### 6.4 Schreibregeln (verbindlich)

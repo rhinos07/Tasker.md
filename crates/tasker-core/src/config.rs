@@ -267,6 +267,8 @@ pub struct FocusConfig {
     /// Platzhalter `{date}`, `{minutes}`, `{sessions}`, `{task}`
     pub log_format: String,
     pub min_minutes: u32,
+    /// Fokus-Start setzt die Aufgabe auf `[/]` (in Arbeit)
+    pub mark_in_progress: bool,
 }
 
 impl Default for FocusConfig {
@@ -278,6 +280,7 @@ impl Default for FocusConfig {
             log_section: "## Log".into(),
             log_format: crate::focuslog::DEFAULT_FORMAT.into(),
             min_minutes: 5,
+            mark_in_progress: false,
         }
     }
 }

@@ -15,6 +15,7 @@ export interface FocusSettings {
   writeToVault: boolean;
   logSection: string;
   minMinutes: number;
+  markInProgress: boolean;
   roundToMinutes: number;
 }
 

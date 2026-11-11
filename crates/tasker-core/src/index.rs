@@ -53,6 +53,8 @@ pub struct ProjectInfo {
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Dashboard {
+    /// `[/]` in Arbeit
+    pub in_progress: Vec<TaskRef>,
     pub important: Vec<TaskRef>,
     pub overdue: Vec<TaskRef>,
     pub due_this_week: Vec<TaskRef>,
@@ -216,9 +218,12 @@ impl Index {
         let waiting = |t: &TaskRef| t.task.has_tag(&cfg.waiting_tag);
         let week_end = today + Duration::days(7);
 
-        let mut d = Dashboard::default();
+        let mut d = Dashboard {
+            in_progress: open.iter().filter(|t| t.task.in_progress).map(|t| (*t).clone()).collect(),
+            ..Dashboard::default()
+        };
         let mut important: Vec<TaskRef> =
-            open.iter().filter(|t| t.task.priority.is_set() && !t.blocked).map(|t| (*t).clone()).collect();
+            open.iter().filter(|t| t.task.priority.is_set() && !t.blocked && !t.task.in_progress).map(|t| (*t).clone()).collect();
         important.sort_by_key(|t| t.task.priority);
         d.important = important;
         d.overdue = open.iter().filter(|t| t.task.due.is_some_and(|x| x < today)).map(|t| (*t).clone()).collect();
@@ -235,7 +240,7 @@ impl Index {
                 d.blocked.entry(t.note_name.clone()).or_default().push((*t).clone());
             } else if waiting(t) {
                 d.waiting.entry(t.note_name.clone()).or_default().push((*t).clone());
-            } else if t.task.due.is_none() && !t.task.priority.is_set() {
+            } else if t.task.due.is_none() && !t.task.priority.is_set() && !t.task.in_progress {
                 let ctx = t.task.contexts().next().unwrap_or("(ohne Kontext)").to_string();
                 d.next_actions.entry(ctx).or_default().push((*t).clone());
             }

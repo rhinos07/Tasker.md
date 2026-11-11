@@ -24,6 +24,8 @@ export interface Actions {
   startFocus: (t: TaskRef) => void;
   /** `high` (⏫), `medium` (🔼) oder `none` */
   setPriority: (t: TaskRef, p: "high" | "medium" | "none") => void;
+  /** schaltet `[ ]` ↔ `[/]` (in Arbeit) */
+  toggleInProgress: (t: TaskRef) => void;
   openInObsidian: (t: TaskRef) => void;
   /** öffnet den Datumsdialog für ⏳ */
   pickDate: (t: TaskRef) => void;
@@ -67,6 +69,11 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
       >
         ☐
       </button>
+      {k.inProgress && (
+        <span className="badge doing" title="in Arbeit ([/]); Taste s schaltet zurück">
+          in Arbeit
+        </span>
+      )}
       <span className="desc">{k.description}</span>
       {PRIO[k.priority] && <span className="meta">{PRIO[k.priority]}</span>}
       {k.due && <span className="meta due">📅 {k.due}</span>}

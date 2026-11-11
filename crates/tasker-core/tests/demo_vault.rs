@@ -90,6 +90,17 @@ fn dashboard_sections() {
 
     let private = idx.dashboard(&c, Some(Scope::Private), today());
     assert!(private.overdue.is_empty());
+
+    // [/] steht unter „In Arbeit“ statt bei den nächsten Aktionen, [-] nirgends
+    assert_eq!(descs(&all.in_progress), vec!["Werkzeugliste zusammenstellen"]);
+    let everywhere: Vec<&str> = all.next_actions.values().flatten().map(|t| t.task.description.as_str()).collect();
+    assert!(!everywhere.contains(&"Werkzeugliste zusammenstellen"));
+    assert!(!everywhere.contains(&"Fertiggartenhaus aus dem Katalog bestellen"));
+    let today_view = tasker_core::today::today_view(&idx, &c, None, today(), &[]);
+    assert_eq!(descs(&today_view.in_progress), vec!["Werkzeugliste zusammenstellen"]);
+    let f = tasker_core::filter::Filter::parse("inarbeit").unwrap();
+    let hits = tasker_core::filter::apply(&f, &idx, &c, None, today());
+    assert_eq!(hits.iter().map(|t| t.task.description.as_str()).collect::<Vec<_>>(), vec!["Werkzeugliste zusammenstellen"]);
 }
 
 #[test]

@@ -42,7 +42,10 @@ pub struct Task {
     pub line: usize,
     pub indent: usize,
     pub status: char,
+    /// erledigt (`[x]`) oder abgebrochen (`[-]`): nicht mehr offen
     pub done: bool,
+    /// `[/]` in Arbeit
+    pub in_progress: bool,
     /// Text ohne Metadaten und ohne Tags
     pub description: String,
     pub due: Option<NaiveDate>,
@@ -105,7 +108,8 @@ pub fn parse_task_line(line_no: usize, raw: &str) -> Option<Task> {
         line: line_no,
         indent,
         status,
-        done: matches!(status, 'x' | 'X'),
+        done: matches!(status, 'x' | 'X' | '-'),
+        in_progress: status == '/',
         description: String::new(),
         due: None,
         scheduled: None,
@@ -158,13 +162,12 @@ pub fn parse_task_line(line_no: usize, raw: &str) -> Option<Task> {
     Some(t)
 }
 
-/// Markiert eine offene Aufgabenzeile als erledigt: `[ ]` → `[x]` plus ` ✅ YYYY-MM-DD`.
+/// Markiert eine offene Aufgabenzeile als erledigt: `[ ]` bzw. `[/]` → `[x]` plus ` ✅ YYYY-MM-DD`.
 /// Alle anderen Zeichen der Zeile bleiben unverändert. Gibt `None` zurück,
-/// wenn die Zeile keine offene Aufgabe ist.
-/// Wiederholungen (🔁) werden noch nicht fortgeschrieben (TODO, SPEC 6.1).
+/// wenn die Zeile keine offene Aufgabe ist. Die nächste Instanz bei 🔁 legt `edit` an.
 pub fn complete_line(raw: &str, today: NaiveDate) -> Option<String> {
     let caps = RE_TASK.captures(raw)?;
-    if &caps[2] != " " {
+    if !matches!(&caps[2], " " | "/") {
         return None;
     }
     let status_pos = caps.get(2)?.start();
@@ -174,6 +177,16 @@ pub fn complete_line(raw: &str, today: NaiveDate) -> Option<String> {
     out.push_str(raw[status_pos + 1..].trim_end());
     out.push_str(&format!(" ✅ {}", today.format("%Y-%m-%d")));
     Some(out)
+}
+
+/// Schaltet zwischen offen `[ ]` und in Arbeit `[/]` um. Andere Status (erledigt, abgebrochen) bleiben unberührt.
+pub fn set_status_line(raw: &str, status: char) -> Option<String> {
+    let caps = RE_TASK.captures(raw)?;
+    if !matches!(&caps[2], " " | "/") || !matches!(status, ' ' | '/') {
+        return None;
+    }
+    let pos = caps.get(2)?.start();
+    Some(format!("{}{status}{}", &raw[..pos], &raw[pos + caps[2].len()..]))
 }
 
 /// Setzt oder entfernt das geplante Datum (⏳) einer Aufgabenzeile.
@@ -251,6 +264,18 @@ mod tests {
         assert_eq!(t.scheduled, Some(d("2026-11-13")));
         assert!(!t.done);
         assert_eq!(t.line, 3);
+    }
+
+    #[test]
+    fn in_progress_and_cancelled() {
+        let t = parse_task_line(0, "- [/] Läuft gerade").unwrap();
+        assert!(t.in_progress && !t.done);
+        let t = parse_task_line(0, "- [-] Abgebrochen").unwrap();
+        assert!(t.done && !t.in_progress, "abgebrochen zählt nicht als offen");
+        assert_eq!(set_status_line("- [ ] A #x", '/').as_deref(), Some("- [/] A #x"));
+        assert_eq!(set_status_line("  * [/] A", ' ').as_deref(), Some("  * [ ] A"));
+        assert_eq!(set_status_line("- [x] A", '/'), None);
+        assert_eq!(set_status_line("- [ ] A", 'x'), None);
     }
 
     #[test]

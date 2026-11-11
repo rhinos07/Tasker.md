@@ -26,6 +26,7 @@ const HELP: [string, string][] = [
   ["fällig:<7d", "heute · überfällig · <7d · keine · 2026-12-24"],
   ["geplant:heute", "wie fällig, für ⏳"],
   ["blockiert", "wartet auf andere Aufgabe"],
+  ["inarbeit", "Status [/] in Arbeit"],
   ["warten", "Warte-Tag"],
   ["jira", "Notiz erwähnt ein Ticket"],
   ["jira:ABC-123", "zu diesem Ticket"],

@@ -22,6 +22,7 @@ interface Config {
     logSection: string;
     logFormat: string;
     minMinutes: number;
+    markInProgress: boolean;
   };
   jira: {
     baseUrl: string;
@@ -298,6 +299,9 @@ export default function Settings({
               </div>
               <label className="check-row">
                 <input type="checkbox" checked={c.focus.writeToVault} onChange={(e) => set("focus", { writeToVault: e.target.checked })} /> Fokus-Zeiten ins Log der Projekt- bzw. Bereichsnotiz schreiben
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={c.focus.markInProgress} onChange={(e) => set("focus", { markInProgress: e.target.checked })} /> Beim Start des Fokus-Timers die Aufgabe auf „in Arbeit“ ([/]) setzen
               </label>
               <div className="grid2">
                 <Field label="Log-Überschrift">

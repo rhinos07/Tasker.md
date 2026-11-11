@@ -439,6 +439,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
           <Timeline data={data} dragRef={dragRef} onDropAt={(m) => void onDropAt(m)} onResize={(b, minutes) => void save({ ...b, minutes })} onRemove={(b) => void remove(b)} />
         </section>
         <div className="today-lists">
+          {data.inProgress.length > 0 && list("In Arbeit", data.inProgress, false)}
           {list("Heute geplant, ohne Uhrzeit", data.scheduled, true, "Auf die Zeitleiste ziehen, um einen Zeitblock anzulegen.")}
           {data.leftover.length > 0 && (
             <section className="card">

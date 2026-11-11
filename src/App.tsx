@@ -315,7 +315,13 @@ export default function App() {
     busy,
     version,
     focusEnabled: !!focus.settings?.enabled,
-    startFocus: focus.start,
+    startFocus: (t) => {
+      focus.start(t);
+      // optional: Fokus-Start markiert die Aufgabe als in Arbeit
+      if (focus.settings?.markInProgress && data?.source !== "demo" && t.task.status === " ") {
+        void run("set_status", { target: target(t), status: "inProgress" }, () => `Fokus gestartet, in Arbeit: ${t.task.description}`);
+      }
+    },
     scheduleToday: (t) =>
       run("schedule_task", { target: target(t), todayFlag: true }, () => `Für heute geplant: ${t.task.description}`),
     scheduleOn: (t, date) =>
@@ -326,6 +332,10 @@ export default function App() {
     setPriority: (t, p) =>
       void run("set_priority", { target: target(t), priority: p }, () =>
         p === "none" ? `Priorität entfernt: ${t.task.description}` : `${p === "high" ? "⏫" : "🔼"} ${t.task.description}`,
+      ),
+    toggleInProgress: (t) =>
+      void run("set_status", { target: target(t), status: t.task.inProgress ? "open" : "inProgress" }, () =>
+        t.task.inProgress ? `Nicht mehr in Arbeit: ${t.task.description}` : `In Arbeit: ${t.task.description}`,
       ),
     pickDate: (t) => setDateTask(t),
     openInObsidian: (t) => void openInObsidian(t),
@@ -405,6 +415,7 @@ export default function App() {
       "1": (t) => actions.setPriority(t, "high"),
       "2": (t) => actions.setPriority(t, "medium"),
       "0": (t) => actions.setPriority(t, "none"),
+      s: (t) => actions.toggleInProgress(t),
       o: (t) => actions.openInObsidian(t),
       f: (t) => (actions.focusEnabled ? actions.startFocus(t) : showToast("Fokus-Timer ist in den Einstellungen aus.")),
     };
@@ -412,7 +423,7 @@ export default function App() {
       e.preventDefault();
       const t = selected && visibleKeys().includes(selected) ? registry.get(selected) : undefined;
       if (!t) showToast("Erst eine Aufgabe mit j/k oder einem Klick auswählen.");
-      else if (actions.readOnly && "xtd120".includes(k)) showToast("Demo-Vault ist schreibgeschützt.");
+      else if (actions.readOnly && "xtd120s".includes(k)) showToast("Demo-Vault ist schreibgeschützt.");
       else onTask[k](t);
     }
   };
@@ -523,6 +534,7 @@ export default function App() {
         )}
         {d && view === "dashboard" && (
           <div className="grid">
+            {d.inProgress.length > 0 && <Section title="In Arbeit" tasks={d.inProgress} />}
             <Section title="🔼 Wichtig" tasks={d.important} />
             <Section title="Überfällig" tasks={d.overdue} />
             <Section title="Diese Woche fällig" tasks={d.dueThisWeek} />

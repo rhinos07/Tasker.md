@@ -123,6 +123,19 @@ fn set_priority(app: tauri::AppHandle, target: TaskTarget, priority: String, dem
         .map_err(|e| e.to_string())
 }
 
+/// Status setzen: `open` (`[ ]`) oder `inProgress` (`[/]`).
+#[tauri::command]
+fn set_status(app: tauri::AppHandle, target: TaskTarget, status: String, demo: Option<bool>) -> Result<EditResult, String> {
+    let st = match status.as_str() {
+        "open" => ' ',
+        "inProgress" => '/',
+        other => return Err(format!("Unbekannter Status: {other}")),
+    };
+    let cfg = writable_config(&app, demo.unwrap_or(false))?;
+    edit_line(&cfg.vault.path, &target.path, target.line, &target.raw, &LineEdit::SetStatus(st), today())
+        .map_err(|e| e.to_string())
+}
+
 /// Öffnet die Notiz in Obsidian, mit Zeilensprung, wenn Advanced URI aktiv ist. Liest `.obsidian/` nur.
 #[tauri::command]
 fn open_in_obsidian(
@@ -412,6 +425,7 @@ pub fn run() {
             upcoming::schedule_on,
             complete_task,
             schedule_task,
+            set_status,
             undo_edit,
             watch_vault,
             config_location,

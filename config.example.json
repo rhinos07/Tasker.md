@@ -94,7 +94,8 @@
     "writeToVault": true,
     "logSection": "## Log",
     "logFormat": "- {date} ⏱ {minutes} min ({sessions}) · {task}",
-    "minMinutes": 5
+    "minMinutes": 5,
+    "markInProgress": false
   },
   "hotkeys": {
     "quickCapture": "CmdOrCtrl+Alt+Space"

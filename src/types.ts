@@ -7,7 +7,10 @@ export interface Task {
   line: number;
   indent: number;
   status: string;
+  /** erledigt `[x]` oder abgebrochen `[-]` */
   done: boolean;
+  /** `[/]` in Arbeit */
+  inProgress: boolean;
   description: string;
   due: string | null;
   scheduled: string | null;
@@ -52,6 +55,7 @@ export interface ProjectInfo {
 }
 
 export interface Dashboard {
+  inProgress: TaskRef[];
   important: TaskRef[];
   overdue: TaskRef[];
   dueThisWeek: TaskRef[];
@@ -155,6 +159,7 @@ export interface TodayData {
   events: CalendarEvent[];
   calendarConnected: boolean;
   today: string | null;
+  inProgress: TaskRef[];
   scheduled: TaskRef[];
   due: TaskRef[];
   important: TaskRef[];

@@ -35,6 +35,7 @@ export const SHORTCUTS: [string, string][] = [
   ["t", "für heute planen (⏳), nochmal: entfernen"],
   ["d", "Datum wählen (⏳)"],
   ["1 / 2 / 0", "Priorität ⏫ / 🔼 / keine"],
+  ["s", "in Arbeit ([/]), nochmal: wieder offen"],
   ["o", "in Obsidian öffnen"],
   ["f", "Fokus-Timer starten"],
   ["/", "Suche"],

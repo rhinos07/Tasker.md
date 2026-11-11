@@ -44,6 +44,8 @@ pub struct BlockView {
 #[serde(rename_all = "camelCase")]
 pub struct TodayView {
     pub today: Option<NaiveDate>,
+    /// `[/]` in Arbeit, ohne Zeitblock heute; erscheint in keiner anderen Liste
+    pub in_progress: Vec<TaskRef>,
     /// ⏳ bis heute, ohne Zeitblock heute
     pub scheduled: Vec<TaskRef>,
     /// 📅 bis heute, nicht schon unter „geplant“
@@ -96,7 +98,14 @@ pub fn today_view(index: &Index, _cfg: &Config, scope: Option<Scope>, today: Nai
         }
     }
 
-    let open: Vec<&TaskRef> = index.tasks.iter().filter(|t| !t.task.done).filter(in_scope).collect();
+    let open_all: Vec<&TaskRef> = index.tasks.iter().filter(|t| !t.task.done).filter(in_scope).collect();
+    let in_progress: Vec<TaskRef> = open_all
+        .iter()
+        .filter(|t| t.task.in_progress)
+        .filter(|t| !blocked_keys.contains(&(t.note_path.as_str(), t.task.description.as_str())))
+        .map(|t| (*t).clone())
+        .collect();
+    let open: Vec<&TaskRef> = open_all.into_iter().filter(|t| !t.task.in_progress).collect();
     let mut scheduled: Vec<TaskRef> = open
         .iter()
         .filter(|t| on_today(t, today))
@@ -118,7 +127,7 @@ pub fn today_view(index: &Index, _cfg: &Config, scope: Option<Scope>, today: Nai
         .collect();
     important.sort_by_key(|t| t.task.priority);
 
-    TodayView { today: Some(today), scheduled, due, important, blocks: today_blocks, leftover }
+    TodayView { today: Some(today), in_progress, scheduled, due, important, blocks: today_blocks, leftover }
 }
 
 /// Entfernt Blöcke, die nicht mehr gebraucht werden: älter als `keep_days` oder Aufgabe erledigt bzw. verschwunden.

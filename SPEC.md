@@ -76,7 +76,10 @@ Einstufung: **MVP** = erste Version · **P2** = Phase 2 · **–** = nicht gepla
 ### 3.2 Aufgaben-Parser (Tasks-Plugin-Syntax)
 | Element | Bedeutung |
 |---|---|
-| `- [ ]` / `- [x]` | offen / erledigt (andere Status-Zeichen werden als offen gelesen und unverändert gelassen) |
+| `- [ ]` / `- [x]` | offen / erledigt |
+| `- [/]` | in Arbeit (offen; eigener Abschnitt „In Arbeit“ auf Heute und im Dashboard) |
+| `- [-]` | abgebrochen (zählt wie erledigt, wird nicht angezeigt) |
+| andere Status-Zeichen | werden als offen gelesen und unverändert gelassen |
 | `📅 YYYY-MM-DD` | fällig (nur echte Termine) |
 | `⏳ YYYY-MM-DD` | geplant / Wiedervorlage |
 | `🛫 YYYY-MM-DD` | Start |
@@ -183,6 +186,7 @@ Seitenleiste mit den Ansichten und den gespeicherten Filtern. Dazu Suche, Inbox-
   - Die neue Instanz ist offen und hat weder ✅ noch ❌ noch 🆔. ➕ wird auf heute gesetzt, ⛔ bleibt.
   - Unbekannte Regeln: Die App verweigert das Abhaken mit einem Hinweis, die Datei bleibt unverändert.
 - **Planen:** ⏳ auf heute oder ein Datum setzen bzw. entfernen. Priorität auf ⏫, 🔼 oder keine setzen.
+- **In Arbeit:** Taste `s` schaltet zwischen `[ ]` und `[/]` um, mit Rückgängig. Optional (`focus.markInProgress`, Standard aus) setzt der Start des Fokus-Timers `[/]`. Eine Aufgabe in Arbeit lässt sich direkt abhaken. Filter: `inarbeit`.
 - **Anlegen:** Dialog mit Text, Kontext, Priorität, ⏳, 📅, 🔁 und Ziel. Ziel ist ein Projekt (Abschnitt „Nächste Schritte“) oder ein Bereich (Abschnitt „Aufgaben ohne Projekt“). Fehlt der Abschnitt, wird er am Ende der Notiz angelegt.
 - **Inbox-Erfassung:** legt eine neue Notiz in `folders.inbox` an.
 - **In Obsidian öffnen** (Klick oder `o`), zweistufig:

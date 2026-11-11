@@ -19,6 +19,8 @@ pub enum LineEdit {
     SetScheduled(Option<NaiveDate>),
     /// Priorität setzen (`Priority::None` entfernt sie)
     SetPriority(crate::task::Priority),
+    /// Status `' '` (offen) oder `'/'` (in Arbeit) setzen
+    SetStatus(char),
     /// Zeile(n) durch einen festen Text ersetzen (für Rückgängig, darf mehrere Zeilen enthalten)
     Replace(String),
 }
@@ -137,6 +139,7 @@ pub fn apply_to_text(
             }
             crate::task::set_priority_line(current, *p).ok_or(EditError::NotApplicable)?
         }
+        LineEdit::SetStatus(st) => crate::task::set_status_line(current, *st).ok_or(EditError::NotApplicable)?,
         LineEdit::Replace(s) => {
             if s.contains('\r') || s.is_empty() {
                 return Err(EditError::NotApplicable);
@@ -260,6 +263,21 @@ mod tests {
         assert_eq!(r.unwrap_err(), EditError::NotApplicable);
         let r = apply_to_text("Text\n", 0, "Text", &LineEdit::Complete, d(TODAY));
         assert_eq!(r.unwrap_err(), EditError::NotApplicable);
+    }
+
+    #[test]
+    fn status_in_progress_roundtrip() {
+        let (out, _, new) = apply_to_text("- [ ] A ⏫\n", 0, "- [ ] A ⏫", &LineEdit::SetStatus('/'), d(TODAY)).unwrap();
+        assert_eq!((out.as_str(), new.as_str()), ("- [/] A ⏫\n", "- [/] A ⏫"));
+        let (back, ..) = apply_to_text(&out, 0, "- [/] A ⏫", &LineEdit::SetStatus(' '), d(TODAY)).unwrap();
+        assert_eq!(back, "- [ ] A ⏫\n");
+        // in Arbeit lässt sich abhaken; erledigt/abgebrochen lässt sich nicht umschalten
+        let (done, ..) = apply_to_text("- [/] A\n", 0, "- [/] A", &LineEdit::Complete, d(TODAY)).unwrap();
+        assert_eq!(done, "- [x] A ✅ 2026-11-11\n");
+        for closed in ["- [x] A", "- [-] A"] {
+            let r = apply_to_text(closed, 0, closed, &LineEdit::SetStatus('/'), d(TODAY));
+            assert_eq!(r.unwrap_err(), EditError::NotApplicable, "{closed}");
+        }
     }
 
     #[test]

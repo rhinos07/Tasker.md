@@ -113,7 +113,11 @@ code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius:
 /* Heute & Zeitleiste */
 .today { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 16px; align-items: start; }
 /* Zeitleiste rechts, bleibt beim Scrollen stehen und scrollt innen */
-.today > .timeline-card { order: 2; position: sticky; top: 0; max-height: calc(100vh - 32px); overflow-y: auto; }
+.today > .timeline-card { order: 2; position: sticky; top: 0; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+/* Überschrift und Kalenderleiste bleiben stehen, nur die Stunden scrollen.
+   Innere Scrollbar nur beim Darüberfahren und schmal, damit rechts nicht zwei Balken nebeneinander stehen. */
+.timeline-card > .timeline-wrap { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.timeline-card > .timeline-wrap:hover { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .today-lists { display: flex; flex-direction: column; gap: 16px; }
 .small { font-size: 12px; margin: 0 0 8px; }
 .task.draggable { cursor: grab; }

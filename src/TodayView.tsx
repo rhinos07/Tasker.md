@@ -272,12 +272,12 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   loadRef.current = load;
 
   useEffect(() => {
-    const card = timelineRef.current;
-    const now = card?.querySelector<HTMLElement>(".now");
-    if (!card || !now || scrolledToNow.current) return;
+    const wrap = timelineRef.current?.querySelector<HTMLElement>(".timeline-wrap");
+    const now = wrap?.querySelector<HTMLElement>(".now");
+    if (!wrap || !now || scrolledToNow.current) return;
     scrolledToNow.current = true;
-    const offset = now.getBoundingClientRect().top - card.getBoundingClientRect().top;
-    card.scrollTop = Math.max(0, offset - card.clientHeight / 3);
+    const offset = now.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+    wrap.scrollTop = Math.max(0, offset - wrap.clientHeight / 3);
   }, [data]);
 
   // Kalender: Status holen, bei veraltetem Cache neu laden (nicht im Demo-Vault)

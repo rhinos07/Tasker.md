@@ -57,6 +57,14 @@ pub struct Dashboard {
     pub blocked: BTreeMap<String, Vec<TaskRef>>,
 }
 
+/// Verweis auf eine Notiz, z. B. als Fundstelle eines Jira-Tickets.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteRef {
+    pub path: String,
+    pub name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Index {
@@ -65,6 +73,10 @@ pub struct Index {
     pub projects: Vec<ProjectInfo>,
     pub inbox_count: usize,
     pub warnings: Vec<String>,
+    /// Ticket-Schlüssel → Notizen, die ihn im Text erwähnen
+    pub jira_mentions: BTreeMap<String, Vec<NoteRef>>,
+    /// Ticket-Schlüssel → Projekte, denen er im Feld `jira` zugeordnet ist
+    pub jira_assigned: BTreeMap<String, Vec<NoteRef>>,
 }
 
 fn date_of(note: &Note, key: &str) -> Option<NaiveDate> {
@@ -161,7 +173,18 @@ impl Index {
             .collect();
 
         let inbox_count = notes.iter().filter(|n| n.kind == NoteKind::Inbox).count();
-        Index { today: Some(today), tasks, projects, inbox_count, warnings }
+        let mut jira_mentions: BTreeMap<String, Vec<NoteRef>> = BTreeMap::new();
+        let mut jira_assigned: BTreeMap<String, Vec<NoteRef>> = BTreeMap::new();
+        for n in notes {
+            let r = NoteRef { path: n.path.clone(), name: n.name.clone() };
+            for k in &n.jira_mentions {
+                jira_mentions.entry(k.clone()).or_default().push(r.clone());
+            }
+            for k in &n.jira_assigned {
+                jira_assigned.entry(k.clone()).or_default().push(r.clone());
+            }
+        }
+        Index { today: Some(today), tasks, projects, inbox_count, warnings, jira_mentions, jira_assigned }
     }
 
     /// Die Abschnitte aus SPEC 5.2. `scope = None` heißt „Alle“.

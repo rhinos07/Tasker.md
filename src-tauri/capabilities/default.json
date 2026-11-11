@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Rechte des Hauptfensters",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "opener:default"]
 }

@@ -72,6 +72,57 @@ export interface Overview {
   dashboard: Dashboard;
 }
 
+export interface NoteRef {
+  path: string;
+  name: string;
+}
+
+export interface JiraStatus {
+  configured: boolean;
+  siteSet: boolean;
+  hasToken: boolean;
+  email: string;
+  tokenType: string;
+  refreshMinutes: number;
+  fetchedAt: string | null;
+  user: string | null;
+  demo: boolean;
+}
+
+export interface LinkedIssue {
+  key: string;
+  summary: string;
+  status: string;
+  statusCategory: string;
+  issueType: string;
+  priority: string;
+  updated: string;
+  url: string;
+  assignedTo: NoteRef[];
+  mentionedIn: NoteRef[];
+}
+
+export interface StatusGroup {
+  status: string;
+  category: string;
+  issues: LinkedIssue[];
+}
+
+export interface VaultOnlyKey {
+  key: string;
+  url: string;
+  assignedTo: NoteRef[];
+  mentionedIn: NoteRef[];
+}
+
+export interface JiraView {
+  fetchedAt: string | null;
+  user: string | null;
+  total: number;
+  groups: StatusGroup[];
+  vaultOnly: VaultOnlyKey[];
+}
+
 export interface EditResult {
   path: string;
   line: number;

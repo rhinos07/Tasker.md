@@ -126,7 +126,7 @@ pub fn edit_line(
     Ok(EditResult { path: rel.to_string(), line, old, new })
 }
 
-fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
+pub fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
     let dir = path.parent().ok_or(std::io::ErrorKind::NotFound)?;
     let name = path.file_name().ok_or(std::io::ErrorKind::NotFound)?.to_string_lossy();
     let tmp = dir.join(format!(".{name}.tasker-tmp"));

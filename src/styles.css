@@ -86,3 +86,22 @@ tr.warn td:first-child { border-left: 3px solid var(--warn); }
 
 .error { background: #fde8e8; color: var(--alert); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
 .warnings { margin-top: 16px; color: var(--muted); font-size: 12px; }
+
+/* Jira */
+.card.wide + .card.wide { margin-top: 16px; }
+.jira-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--muted); }
+.jira-bar span { margin-right: auto; }
+table.jira td { vertical-align: top; }
+a.key { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+a.key:hover { text-decoration: underline; }
+details.refs { display: inline-block; }
+details.refs summary { cursor: pointer; list-style: none; display: inline; }
+details.refs ul { font-size: 12px; margin: 4px 0 0 6px; }
+.vault-only { margin-top: 16px; }
+.vault-only summary { cursor: pointer; display: flex; gap: 12px; align-items: baseline; }
+.vault-only summary h2 { margin: 0; }
+.setup form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-top: 8px; }
+.setup label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.setup input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; min-width: 260px; }
+.ok { color: #2f9e57; }
+code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius: 4px; }

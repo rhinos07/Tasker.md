@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import JiraView from "./JiraView";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
 type View = "today" | "dashboard" | "projects" | "jira" | "upcoming";
@@ -10,7 +11,7 @@ const VIEWS: { id: View; label: string; ready: boolean }[] = [
   { id: "today", label: "Heute", ready: false },
   { id: "dashboard", label: "Dashboard", ready: true },
   { id: "projects", label: "Projekte", ready: true },
-  { id: "jira", label: "Jira", ready: false },
+  { id: "jira", label: "Jira", ready: true },
   { id: "upcoming", label: "Demnächst", ready: false },
 ];
 
@@ -291,6 +292,7 @@ export default function App() {
         {data && view === "projects" && (
           <Projects projects={data.index.projects.filter((p) => scope === "all" || p.scope === scope)} />
         )}
+        {view === "jira" && <JiraView demo={demo} />}
         {data && data.index.warnings.length > 0 && (
           <details className="warnings">
             <summary>{data.index.warnings.length} Hinweise</summary>

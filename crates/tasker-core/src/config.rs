@@ -135,11 +135,39 @@ pub struct AreasConfig {
     pub work_paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct JiraConfig {
+    /// z. B. `https://<firma>.atlassian.net`, leer = Jira aus
     pub base_url: String,
+    pub email: String,
+    pub jql: String,
     pub project_keys: Vec<String>,
+    pub refresh_minutes: u32,
+    /// `scoped` (Token mit Bereichen, über api.atlassian.com) oder `classic`
+    pub token_type: String,
+}
+
+pub const DEFAULT_JQL: &str =
+    "assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC, updated DESC";
+
+impl Default for JiraConfig {
+    fn default() -> Self {
+        Self {
+            base_url: String::new(),
+            email: String::new(),
+            jql: DEFAULT_JQL.into(),
+            project_keys: vec![],
+            refresh_minutes: 15,
+            token_type: "scoped".into(),
+        }
+    }
+}
+
+impl JiraConfig {
+    pub fn is_configured(&self) -> bool {
+        self.base_url.starts_with("https://") && !self.base_url.contains('<') && !self.email.is_empty()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -177,7 +205,7 @@ impl Config {
                 .map(String::from)
                 .to_vec(),
             waiting_tag: "#warten".into(),
-            jira: JiraConfig { base_url: String::new(), project_keys: vec!["ABC".into()] },
+            jira: JiraConfig { project_keys: vec!["ABC".into()], ..JiraConfig::default() },
         }
     }
 }

@@ -99,6 +99,7 @@ fn write_task_log(cfg: &Config, store: &FocusStore, p: &PendingLog) -> Result<Op
     if sessions == 0 {
         return Ok(None);
     }
+    crate::index_cache::invalidate();
     write_log(&cfg.vault.path, &p.path, &cfg.focus.log_section, &cfg.focus.log_format, p.date, &p.description, minutes, sessions)
         .map(Some)
         .map_err(|e| e.to_string())

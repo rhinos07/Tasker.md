@@ -4,6 +4,7 @@
 mod calendar;
 mod focus;
 mod google;
+mod index_cache;
 mod jira;
 mod quick;
 mod settings;
@@ -15,7 +16,7 @@ use std::path::PathBuf;
 use tasker_core::edit::{edit_line, EditResult, LineEdit};
 use tasker_core::index::NoteRef;
 use tasker_core::jira::{group_issues, JiraIssue, StatusGroup};
-use tasker_core::{load_index, load_index_with_keys, Config, Dashboard, Index, Scope};
+use tasker_core::{load_index_with_keys, Config, Dashboard, Index, Scope};
 use tauri::{Manager, State};
 
 #[derive(Serialize)]
@@ -56,14 +57,14 @@ fn resolve_config(app: &tauri::AppHandle, demo: bool) -> Result<(Config, &'stati
 fn get_overview(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool>) -> Result<Overview, String> {
     let (cfg, source) = resolve_config(&app, demo.unwrap_or(false))?;
     let today = today();
-    let index = load_index(&cfg, today).map_err(|e| e.to_string())?;
+    let index = index_cache::get(&cfg, today)?;
     let scope = match scope.as_deref() {
         Some("work") => Some(Scope::Work),
         Some("private") => Some(Scope::Private),
         _ => None,
     };
     let dashboard = index.dashboard(&cfg, scope, today);
-    Ok(Overview { vault_name: cfg.vault.name.clone(), source, index, dashboard })
+    Ok(Overview { vault_name: cfg.vault.name.clone(), source, index: (*index).clone(), dashboard })
 }
 
 /// Eine Aufgabenzeile, wie die Oberfläche sie aus dem Index kennt.
@@ -77,7 +78,9 @@ struct TaskTarget {
 
 /// Konfiguration für Schreibzugriffe. Der Demo-Vault im Repo ist schreibgeschützt,
 /// damit die Tests stabil bleiben.
+/// Konfiguration für einen Schreibvorgang. Verwirft den Index-Zwischenspeicher, denn gleich ändert sich der Vault.
 fn writable_config(app: &tauri::AppHandle, demo: bool) -> Result<Config, String> {
+    index_cache::invalidate();
     match resolve_config(app, demo)? {
         (_, "demo") => Err("Der Demo-Vault ist schreibgeschützt.".into()),
         (cfg, _) => Ok(cfg),

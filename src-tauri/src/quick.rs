@@ -92,7 +92,7 @@ fn build(cfg: &Config, index: &Index, input: &str) -> Preview {
 #[tauri::command]
 pub fn quick_preview(app: tauri::AppHandle, input: String, demo: Option<bool>) -> Result<Preview, String> {
     let (cfg, _) = resolve_config(&app, demo.unwrap_or(false))?;
-    let index = load_index(&cfg, today()).map_err(|e| e.to_string())?;
+    let index = crate::index_cache::get(&cfg, today())?;
     Ok(build(&cfg, &index, &input))
 }
 

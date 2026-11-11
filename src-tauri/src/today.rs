@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tasker_core::config::TimelineConfig;
 use tasker_core::today::{parse_hm, prune_blocks, today_view, CalendarEvent, TimeBlock, TodayView};
-use tasker_core::{load_index, Index, Scope};
+use tasker_core::{Index, Scope};
 use tauri::Manager;
 
 /// Schützt Lesen-Ändern-Schreiben der Block-Datei vor parallelen Befehlen.
@@ -70,9 +70,9 @@ pub struct TodayData {
     view: TodayView,
 }
 
-fn load(app: &tauri::AppHandle, demo: bool) -> Result<(tasker_core::Config, &'static str, Index), String> {
+fn load(app: &tauri::AppHandle, demo: bool) -> Result<(tasker_core::Config, &'static str, std::sync::Arc<Index>), String> {
     let (cfg, source) = resolve_config(app, demo)?;
-    let index = load_index(&cfg, today()).map_err(|e| e.to_string())?;
+    let index = crate::index_cache::get(&cfg, today())?;
     Ok((cfg, source, index))
 }
 

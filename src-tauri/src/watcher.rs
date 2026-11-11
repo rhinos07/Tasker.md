@@ -32,6 +32,7 @@ pub fn watch(app: &AppHandle, state: &WatchState, cfg: &Config) -> Result<(), St
     *guard = None; // alten Watcher beenden
     let app = app.clone();
     let debouncer = start(cfg, move |changed| {
+        crate::index_cache::invalidate();
         let _ = app.emit(EVENT, changed);
     })?;
     *guard = Some(Active { root: cfg.vault.path.clone(), _debouncer: debouncer });

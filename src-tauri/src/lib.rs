@@ -372,6 +372,12 @@ fn config_location(app: tauri::AppHandle) -> Option<String> {
     config_path(&app).map(|p| p.display().to_string())
 }
 
+/// Gibt es den Demo-Vault aus dem Repo? Nur in Debug-Builds.
+#[tauri::command]
+fn demo_available() -> bool {
+    demo_config().is_some()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -404,6 +410,7 @@ pub fn run() {
             undo_edit,
             watch_vault,
             config_location,
+            demo_available,
             jira_status,
             jira_save_credentials,
             jira_delete_token,

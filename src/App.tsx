@@ -476,9 +476,11 @@ export default function App() {
               <div className="muted">{data.source === "demo" ? "Demo-Vault" : data.vaultName}</div>
             </>
           )}
-          <label className="muted">
-            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> Demo-Vault
-          </label>
+          {demo && (
+            <button className="link" onClick={() => setDemo(false)} title="Zurück zum eigenen Vault">
+              Demo beenden
+            </button>
+          )}
           <div className={live ? "live on" : "live"} title={live ? "Änderungen im Vault werden automatisch übernommen" : "Automatisches Neuladen nicht aktiv"}>
             {live ? "● live" : "○ nicht live"}
           </div>
@@ -566,6 +568,8 @@ export default function App() {
       {showSettings && (
         <Settings
           initialTab={showSettings}
+          demo={demo}
+          onDemoChange={setDemo}
           onClose={() => setShowSettings(false)}
           onSaved={() => {
             void invoke<{ active: boolean; error: string | null }>("hotkey_apply").then((s) => s.error && showToast(s.error));

@@ -241,6 +241,9 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   const [data, setData] = useState<TodayData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const dragRef = useRef<Drag | null>(null);
+  // Zeitleiste beim ersten Anzeigen einmal zur aktuellen Uhrzeit scrollen
+  const timelineRef = useRef<HTMLElement | null>(null);
+  const scrolledToNow = useRef(false);
   const [cal, setCal] = useState<CalendarStatus | null>(null);
   const [showCal, setShowCal] = useState(false);
   const [showTimes, setShowTimes] = useState(false);
@@ -267,6 +270,15 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   // darf danach nicht mit dem alten Bereich neu laden.
   const loadRef = useRef(load);
   loadRef.current = load;
+
+  useEffect(() => {
+    const card = timelineRef.current;
+    const now = card?.querySelector<HTMLElement>(".now");
+    if (!card || !now || scrolledToNow.current) return;
+    scrolledToNow.current = true;
+    const offset = now.getBoundingClientRect().top - card.getBoundingClientRect().top;
+    card.scrollTop = Math.max(0, offset - card.clientHeight / 3);
+  }, [data]);
 
   // Kalender: Status holen, bei veraltetem Cache neu laden (nicht im Demo-Vault)
   const syncCalendar = useCallback(
@@ -394,7 +406,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
       )}
       {showTimes && <FocusTimes demo={demo} />}
       <div className="today">
-        <section className="card timeline-card">
+        <section className="card timeline-card" ref={timelineRef}>
           <h2>
             Zeitleiste <span className="count">{data.today}</span>
           </h2>

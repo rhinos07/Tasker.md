@@ -73,11 +73,20 @@ export default function Settings({
   onClose,
   onSaved,
   initialTab = "vault",
+  demo,
+  onDemoChange,
 }: {
   onClose: () => void;
   onSaved: () => void;
   initialTab?: Tab;
+  /** Demo-Vault ansehen: wirkt sofort, wird nicht in die Konfiguration geschrieben */
+  demo: boolean;
+  onDemoChange: (on: boolean) => void;
 }) {
+  const [demoAvailable, setDemoAvailable] = useState(false);
+  useEffect(() => {
+    void invoke<boolean>("demo_available").then(setDemoAvailable, () => setDemoAvailable(false));
+  }, []);
   const [data, setData] = useState<SettingsData | null>(null);
   const [c, setC] = useState<Config | null>(null);
   // Listen als Text, damit beim Tippen keine Zeilen verschwinden
@@ -220,6 +229,19 @@ export default function Settings({
               <Field label="Nicht scannen" hint="Glob-Muster, eines pro Zeile, z. B. 30 Wissen/**">
                 {list("exclude")}
               </Field>
+              {demoAvailable && (
+                <>
+                  <h3>Demo-Vault</h3>
+                  <label className="toggle">
+                    <input type="checkbox" checked={demo} onChange={(e) => onDemoChange(e.target.checked)} /> Erfundenen
+                    Beispiel-Vault anzeigen
+                  </label>
+                  <p className="muted small">
+                    Zum Ausprobieren, schreibgeschützt. Wirkt sofort und wird nicht gespeichert. Nur in Entwickler-Builds
+                    vorhanden.
+                  </p>
+                </>
+              )}
             </>
           )}
           {tab === "gtd" && (

@@ -37,6 +37,8 @@ aside { background: var(--panel); border-right: 1px solid var(--border); display
 nav { display: flex; flex-direction: column; gap: 4px; }
 nav button { border: none; text-align: left; padding: 6px 10px; }
 nav button.active { background: var(--tag); color: var(--accent); font-weight: 600; }
+.live { color: var(--muted); }
+.live.on { color: #2f9e57; }
 .footer { margin-top: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 
 main { overflow: auto; padding: 16px 24px; }

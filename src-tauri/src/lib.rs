@@ -1,11 +1,13 @@
 //! Tauri-Backend: stellt den Vault-Index als Befehle für die Oberfläche bereit.
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
+mod watcher;
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tasker_core::edit::{edit_line, EditResult, LineEdit};
 use tasker_core::{load_index, Config, Dashboard, Index, Scope};
-use tauri::Manager;
+use tauri::{Manager, State};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,6 +107,13 @@ fn undo_edit(app: tauri::AppHandle, edit: EditResult, demo: Option<bool>) -> Res
         .map_err(|e| e.to_string())
 }
 
+/// Startet (oder wechselt) den Datei-Watcher für den aktuell angezeigten Vault.
+#[tauri::command]
+fn watch_vault(app: tauri::AppHandle, state: State<'_, watcher::WatchState>, demo: Option<bool>) -> Result<(), String> {
+    let (cfg, _) = resolve_config(&app, demo.unwrap_or(false))?;
+    watcher::watch(&app, &state, &cfg)
+}
+
 #[tauri::command]
 fn config_location(app: tauri::AppHandle) -> Option<String> {
     config_path(&app).map(|p| p.display().to_string())
@@ -113,7 +122,15 @@ fn config_location(app: tauri::AppHandle) -> Option<String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_overview, complete_task, schedule_task, undo_edit, config_location])
+        .manage(watcher::WatchState::default())
+        .invoke_handler(tauri::generate_handler![
+            get_overview,
+            complete_task,
+            schedule_task,
+            undo_edit,
+            watch_vault,
+            config_location
+        ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");
 }

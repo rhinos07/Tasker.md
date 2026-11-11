@@ -195,6 +195,29 @@ fn rel_path(root: &Path, p: &Path) -> Option<String> {
     Some(nfc(&rel.to_string_lossy().replace('\\', "/")))
 }
 
+/// Entscheidet für den Datei-Watcher, ob eine geänderte Datei einen Neuaufbau des Index auslöst.
+/// Vorkompiliert, weil der Watcher sie für jedes Ereignis aufruft.
+pub struct ChangeFilter {
+    root: std::path::PathBuf,
+    excludes: GlobSet,
+}
+
+impl ChangeFilter {
+    pub fn new(cfg: &Config) -> Result<Self, ScanError> {
+        Ok(Self { root: cfg.vault.path.clone(), excludes: build_globs(&cfg.scan.exclude)? })
+    }
+
+    /// Relevant sind Markdown-Dateien im Vault, die nicht ausgeschlossen sind.
+    /// Das Löschen einer Datei zählt auch (die Datei existiert dann nicht mehr).
+    pub fn is_relevant(&self, abs: &Path) -> bool {
+        if abs.extension().and_then(|e| e.to_str()) != Some("md") {
+            return false;
+        }
+        let Some(rel) = rel_path(&self.root, abs) else { return false };
+        !(rel.starts_with(".obsidian/") || self.excludes.is_match(&rel) || is_sync_conflict(&rel))
+    }
+}
+
 /// Erkennt typische Konfliktdateien von Cloud-Sync-Diensten (SPEC 6.4).
 pub fn is_sync_conflict(rel: &str) -> bool {
     let name = rel.rsplit('/').next().unwrap_or(rel).to_lowercase();
@@ -204,6 +227,20 @@ pub fn is_sync_conflict(rel: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn change_filter() {
+        let cfg = Config::for_vault("/v");
+        let f = ChangeFilter::new(&cfg).unwrap();
+        let p = |s: &str| Path::new("/v").join(s);
+        assert!(f.is_relevant(&p("10 Projekte/A/A.md")));
+        assert!(f.is_relevant(&p("Journal/2026-11-11.md")));
+        assert!(!f.is_relevant(&p("30 Wissen/X.md")), "ausgeschlossen");
+        assert!(!f.is_relevant(&p(".obsidian/workspace.json")));
+        assert!(!f.is_relevant(&p("10 Projekte/A/.A.md.tasker-tmp")), "eigene Temp-Datei");
+        assert!(!f.is_relevant(&p("A (conflicted copy).md")));
+        assert!(!f.is_relevant(Path::new("/anders/A.md")), "außerhalb des Vaults");
+    }
 
     #[test]
     fn splits_frontmatter() {

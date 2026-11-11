@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
 type View = "today" | "dashboard" | "projects" | "jira" | "upcoming";
@@ -175,6 +176,32 @@ export default function App() {
     void load();
   }, [load]);
 
+  // Datei-Watcher: bei Änderungen im Vault automatisch neu laden (immer mit dem aktuellen Filter).
+  const [live, setLive] = useState(false);
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await invoke("watch_vault", { demo });
+        setLive(true);
+      } catch {
+        setLive(false);
+      }
+      const u = await listen<number>("vault-changed", () => void loadRef.current());
+      if (cancelled) u();
+      else unlisten = u;
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [demo]);
+
   const showToast = (text: string, undo?: EditResult) => {
     window.clearTimeout(toastTimer.current);
     setToast({ text, undo });
@@ -233,6 +260,9 @@ export default function App() {
           <label className="muted">
             <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> Demo-Vault
           </label>
+          <div className={live ? "live on" : "live"} title={live ? "Änderungen im Vault werden automatisch übernommen" : "Automatisches Neuladen nicht aktiv"}>
+            {live ? "● live" : "○ nicht live"}
+          </div>
           <button onClick={() => void load()}>Aktualisieren</button>
         </div>
       </aside>

@@ -51,6 +51,9 @@ fn merge(dst: &mut Value, patch: &Value) {
 /// Prüft die zusammengeführte Konfiguration. Meldungen ohne private Werte.
 fn validate(cfg: &Config) -> Result<(), String> {
     crate::filters::validate(&cfg.filters)?;
+    if !matches!(cfg.obsidian.use_advanced_uri.as_str(), "auto" | "never") {
+        return Err("obsidian.useAdvancedUri muss „auto“ oder „never“ sein.".into());
+    }
     if cfg.vault.path.as_os_str().is_empty() {
         return Err("Bitte den Vault-Ordner wählen.".into());
     }

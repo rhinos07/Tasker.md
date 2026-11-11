@@ -15,6 +15,8 @@ pub enum LineEdit {
     Complete,
     /// ⏳ setzen (`Some`) oder entfernen (`None`)
     SetScheduled(Option<NaiveDate>),
+    /// Priorität setzen (`Priority::None` entfernt sie)
+    SetPriority(crate::task::Priority),
     /// Zeile durch einen festen Text ersetzen (für Rückgängig)
     Replace(String),
 }
@@ -95,6 +97,13 @@ pub fn apply_to_text(
                 return Err(EditError::NotApplicable);
             }
             set_scheduled_line(current, *d).ok_or(EditError::NotApplicable)?
+        }
+        LineEdit::SetPriority(p) => {
+            let task = parse_task_line(line, current).ok_or(EditError::NotApplicable)?;
+            if task.done {
+                return Err(EditError::NotApplicable);
+            }
+            crate::task::set_priority_line(current, *p).ok_or(EditError::NotApplicable)?
         }
         LineEdit::Replace(s) => {
             if s.contains('\n') || s.contains('\r') {

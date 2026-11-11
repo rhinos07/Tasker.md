@@ -231,3 +231,17 @@ nav.filters { margin-top: 4px; }
 .filter-help ul { list-style: none; padding: 0; margin: 6px 0 0; columns: 2; }
 .filter-help li { margin-bottom: 3px; break-inside: avoid; }
 button.link { border: none; padding: 0; color: var(--accent); }
+
+/* Tastatur */
+.task.selected, .up-card.selected { background: var(--tag); box-shadow: inset 3px 0 0 var(--accent); }
+.task.selected .plan { opacity: 1; }
+kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+.modal.shortcuts { width: min(560px, 92vw); }
+.modal.shortcuts td { padding: 3px 8px; vertical-align: top; }
+.modal.date-dialog { width: min(420px, 92vw); outline: none; }
+.date-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.date-row { display: flex; gap: 8px; }
+.date-row input { flex: 1; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; color-scheme: light dark; }
+.quick-window, .quick-window body { background: transparent; }
+.quick-window .modal-backdrop { background: transparent; padding: 0; align-items: stretch; }
+.quick-window .modal.quick { width: 100%; max-height: none; border-radius: 0; box-shadow: none; }

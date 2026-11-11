@@ -189,9 +189,47 @@ pub fn set_scheduled_line(raw: &str, date: Option<NaiveDate>) -> Option<String> 
     })
 }
 
+impl Priority {
+    /// Emoji des Tasks-Plugins, `None` für keine Priorität.
+    pub fn emoji(self) -> Option<&'static str> {
+        match self {
+            Self::Highest => Some("🔺"),
+            Self::High => Some("⏫"),
+            Self::Medium => Some("🔼"),
+            Self::None => None,
+            Self::Low => Some("🔽"),
+            Self::Lowest => Some("⏬"),
+        }
+    }
+}
+
+/// Setzt die Priorität einer Aufgabenzeile neu. Das Emoji steht wie beim Tasks-Plugin vor den
+/// übrigen Metadaten (🔁 ➕ 🛫 ⏳ 📅 ✅ ❌ 🆔 ⛔), sonst am Ende. Alles andere bleibt unverändert.
+pub fn set_priority_line(raw: &str, p: Priority) -> Option<String> {
+    RE_TASK.captures(raw)?;
+    static RE_PRIO: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*(?:🔺|⏫|🔼|🔽|⏬)\u{FE0F}?").unwrap());
+    static RE_META: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s(?:🔁|➕|🛫|⏳|📅|✅|❌|🆔|⛔)").unwrap());
+    let without = RE_PRIO.replace_all(raw, "").trim_end().to_string();
+    let Some(e) = p.emoji() else { return Some(without) };
+    Some(match RE_META.find(&without) {
+        Some(m) => format!("{} {e}{}", &without[..m.start()], &without[m.start()..]),
+        None => format!("{without} {e}"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sets_priority_before_metadata() {
+        let l = "- [ ] Angebot #@telefon 🔼 🆔 gh-a 📅 2026-11-20";
+        assert_eq!(set_priority_line(l, Priority::High).unwrap(), "- [ ] Angebot #@telefon ⏫ 🆔 gh-a 📅 2026-11-20");
+        assert_eq!(set_priority_line(l, Priority::None).unwrap(), "- [ ] Angebot #@telefon 🆔 gh-a 📅 2026-11-20");
+        assert_eq!(set_priority_line("- [ ] Kaufen", Priority::Medium).unwrap(), "- [ ] Kaufen 🔼");
+        assert_eq!(set_priority_line("  - [ ] X ⏫️ ⏳ 2026-01-01", Priority::Medium).unwrap(), "  - [ ] X 🔼 ⏳ 2026-01-01");
+        assert!(set_priority_line("Kein Task", Priority::High).is_none());
+    }
 
     fn d(s: &str) -> NaiveDate {
         date(s).unwrap()

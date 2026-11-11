@@ -4,7 +4,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ActionsContext, PRIO } from "./tasks";
+import { ActionsContext, PRIO, useSelectable } from "./tasks";
 import type { Scope, TaskRef, UpcomingData } from "./types";
 
 const WD = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -31,11 +31,13 @@ function Card({
   onDragEnd: () => void;
 }) {
   const a = useContext(ActionsContext)!;
+  const { selected, ...selectable } = useSelectable(t);
   const k = t.task;
   const onlyDue = !k.scheduled && !!k.due;
   return (
     <li
-      className={`up-card${draggable ? " draggable" : ""}${t.blocked ? " blocked" : ""}`}
+      className={`up-card${draggable ? " draggable" : ""}${t.blocked ? " blocked" : ""}${selected ? " selected" : ""}`}
+      {...selectable}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}

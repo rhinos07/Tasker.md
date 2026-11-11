@@ -275,3 +275,37 @@ fn filter_matches_next_actions_and_fields() {
     let all = run("");
     assert_eq!(run("prio | !prio"), all, "leer und Tautologie passen auf alles");
 }
+
+/// SPEC 12, Kriterium 11: Link mit Zeile, wenn Advanced URI aktiv ist, sonst obsidian://open; .obsidian bleibt unverändert.
+#[test]
+fn obsidian_link_with_and_without_advanced_uri() {
+    use tasker_core::obsidian::link;
+    let mut c = temp_vault("obsidian");
+    let rel = "10 Projekte/Gartenhaus/Gartenhaus.md";
+    let plain = link(&c, rel, 17);
+    assert!(!plain.exact);
+    assert_eq!(plain.url, "obsidian://open?vault=demo-vault&file=10%20Projekte%2FGartenhaus%2FGartenhaus.md");
+
+    let ob = c.vault.path.join(".obsidian");
+    std::fs::create_dir_all(ob.join("plugins/obsidian-advanced-uri")).unwrap();
+    std::fs::write(ob.join("community-plugins.json"), r#"["dataview","obsidian-advanced-uri"]"#).unwrap();
+    let snapshot = |p: &std::path::Path| -> Vec<(String, Vec<u8>)> {
+        let mut v: Vec<_> = walkdir::WalkDir::new(p)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .map(|e| (e.path().display().to_string(), std::fs::read(e.path()).unwrap()))
+            .collect();
+        v.sort();
+        v
+    };
+    let before = snapshot(&ob);
+    let exact = link(&c, rel, 17);
+    assert!(exact.exact);
+    assert_eq!(exact.url, "obsidian://adv-uri?vault=demo-vault&filepath=10%20Projekte%2FGartenhaus%2FGartenhaus.md&line=18");
+    assert_eq!(snapshot(&ob), before, ".obsidian bleibt byte-gleich");
+
+    c.obsidian.use_advanced_uri = "never".into();
+    assert!(!link(&c, rel, 17).exact, "abschaltbar");
+    std::fs::remove_dir_all(&c.vault.path).unwrap();
+}

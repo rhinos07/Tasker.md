@@ -9,6 +9,7 @@ import Settings from "./Settings";
 import QuickEntry, { type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
+import { DateDialog, SelectionContext, ShortcutHelp, scrollToKey, visibleKeys } from "./keyboard";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
 type View = "today" | "dashboard" | "projects" | "jira" | "upcoming" | "filter-new" | `filter:${string}`;
@@ -138,6 +139,12 @@ export default function App() {
     complete?: TaskRef;
   } | null>(null);
   const [showQuick, setShowQuick] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const registry = useRef(new Map<string, TaskRef>()).current;
+  const [dateTask, setDateTask] = useState<TaskRef | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [hotkey, setHotkey] = useState<string | null>(null);
+  const gPending = useRef(0);
   const toastTimer = useRef<number | undefined>(undefined);
 
   // Nur die Antwort der jüngsten Anfrage zählt: Ein langsamer Lauf mit altem Filter darf keinen neueren überschreiben.
@@ -222,19 +229,6 @@ export default function App() {
     setVersion((v) => v + 1);
   };
 
-  // Schnelleingabe: Taste „q“ (außerhalb von Eingabefeldern) öffnet das Fenster
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement;
-      if (el.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === "q" && !showSettings) {
-        e.preventDefault();
-        setShowQuick(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showSettings]);
 
   const onQuickAdded = (a: Added) => {
     const where = a.createdFile ? `neue Notiz ${a.path}` : a.targetName;
@@ -286,6 +280,35 @@ export default function App() {
   };
   const target = (t: TaskRef) => ({ path: t.notePath, line: t.task.line, raw: t.task.raw });
 
+  // In Obsidian öffnen: mit Advanced URI auf die Zeile, sonst Notiz öffnen und Text in die Zwischenablage
+  const openInObsidian = async (t: TaskRef) => {
+    try {
+      const link = await invoke<{ url: string; exact: boolean }>("open_in_obsidian", {
+        path: t.notePath,
+        line: t.task.line,
+        demo,
+      });
+      if (link.exact) return;
+      const copied = await navigator.clipboard.writeText(t.task.description).then(
+        () => true,
+        () => false,
+      );
+      const first = !localStorage.getItem("tasker.advUriHint");
+      localStorage.setItem("tasker.advUriHint", "1");
+      showToast(
+        (copied ? "Notiz geöffnet, Aufgabentext liegt in der Zwischenablage (Strg/Cmd+F, dann einfügen)." : "Notiz geöffnet.") +
+          (first
+            ? " Tipp: Mit dem Obsidian-Plugin „Advanced URI“ springt die App direkt auf die Zeile. Achtung: Das Plugin erlaubt Links, Notizen zu ändern und Befehle auszuführen."
+            : ""),
+        undefined,
+        undefined,
+        first ? 15000 : 6000,
+      );
+    } catch (e) {
+      showToast(String(e));
+    }
+  };
+
   const actions: Actions = {
     readOnly: data?.source === "demo",
     today: data?.index.today ?? null,
@@ -300,6 +323,12 @@ export default function App() {
         date ? `⏳ ${date.split("-").reverse().slice(0, 2).join(".")}.: ${t.task.description}` : `⏳ entfernt: ${t.task.description}`,
       ),
     notify: (text) => showToast(text),
+    setPriority: (t, p) =>
+      void run("set_priority", { target: target(t), priority: p }, () =>
+        p === "none" ? `Priorität entfernt: ${t.task.description}` : `${p === "high" ? "⏫" : "🔼"} ${t.task.description}`,
+      ),
+    pickDate: (t) => setDateTask(t),
+    openInObsidian: (t) => void openInObsidian(t),
     complete: (t) => void run("complete_task", { target: target(t) }, () => `Erledigt: ${t.task.description}`),
     toggleToday: (t) => {
       const isToday = t.task.scheduled !== null && t.task.scheduled === data?.index.today;
@@ -310,9 +339,110 @@ export default function App() {
   };
   const undo = (e: EditResult) => void run("undo_edit", { edit: e }, () => "Rückgängig gemacht");
 
+  // --- Tastatur (SPEC 6.6) ---
+  const onKeyRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
+  onKeyRef.current = (e: KeyboardEvent) => {
+    const el = e.target as HTMLElement;
+    if (el.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (showSettings || showQuick || dateTask || showHelp) return; // Dialoge haben eigene Tasten
+    const k = e.key;
+    // g-Folgen: g h, g d, g p, g j, g n
+    if (gPending.current && Date.now() - gPending.current < 1200) {
+      gPending.current = 0;
+      const to = ({ h: "today", d: "dashboard", p: "projects", j: "jira", n: "upcoming" } as Record<string, View>)[k];
+      if (to) {
+        e.preventDefault();
+        setView(to);
+        setSelected(null);
+      }
+      return;
+    }
+    if (k === "g") {
+      gPending.current = Date.now();
+      return;
+    }
+    const nav = (step: number) => {
+      const keys = visibleKeys();
+      if (!keys.length) return;
+      const i = selected ? keys.indexOf(selected) : -1;
+      const next = keys[i < 0 ? (step > 0 ? 0 : keys.length - 1) : Math.min(keys.length - 1, Math.max(0, i + step))];
+      setSelected(next);
+      scrollToKey(next);
+    };
+    const simple: Record<string, () => void> = {
+      j: () => nav(1),
+      ArrowDown: () => nav(1),
+      k: () => nav(-1),
+      ArrowUp: () => nav(-1),
+      q: () => setShowQuick(true),
+      "/": () => setView("filter-new"),
+      "?": () => setShowHelp(true),
+      Escape: () => setSelected(null),
+    };
+    if (simple[k]) {
+      e.preventDefault();
+      simple[k]();
+      return;
+    }
+    const onTask: Record<string, (t: TaskRef) => void> = {
+      x: (t) => {
+        // Auswahl rückt auf die nächste Zeile, weil die erledigte verschwindet
+        const keys = visibleKeys();
+        const i = keys.indexOf(selected!);
+        setSelected(keys[i + 1] ?? keys[i - 1] ?? null);
+        actions.complete(t);
+      },
+      t: (t) => actions.toggleToday(t),
+      d: (t) => setDateTask(t),
+      "1": (t) => actions.setPriority(t, "high"),
+      "2": (t) => actions.setPriority(t, "medium"),
+      "0": (t) => actions.setPriority(t, "none"),
+      o: (t) => actions.openInObsidian(t),
+      f: (t) => (actions.focusEnabled ? actions.startFocus(t) : showToast("Fokus-Timer ist in den Einstellungen aus.")),
+    };
+    if (onTask[k]) {
+      e.preventDefault();
+      const t = selected && visibleKeys().includes(selected) ? registry.get(selected) : undefined;
+      if (!t) showToast("Erst eine Aufgabe mit j/k oder einem Klick auswählen.");
+      else if (actions.readOnly && "xtd120".includes(k)) showToast("Demo-Vault ist schreibgeschützt.");
+      else onTask[k](t);
+    }
+  };
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => onKeyRef.current(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  // Ergebnis aus dem Fenster der globalen Schnellerfassung
+  const onQuickAddedRef = useRef(onQuickAdded);
+  onQuickAddedRef.current = onQuickAdded;
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    let cancelled = false;
+    void listen<Added>("quick-added", (ev) => onQuickAddedRef.current(ev.payload))
+      .then((u) => (cancelled ? u() : (un = u)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      un?.();
+    };
+  }, []);
+  useEffect(() => {
+    void invoke<{ shortcut: string; active: boolean; error: string | null }>("hotkey_status").then(
+      (s) => {
+        setHotkey(s.active ? s.shortcut : null);
+        // beim Start einmal melden, wenn das globale Kürzel nicht ging (z. B. von einer anderen App belegt)
+        if (s.error && configVersion === 0) showToast(`Globales Kürzel ${s.shortcut}: ${s.error} Ändern unter Einstellungen → Bedienung.`, undefined, undefined, 12000);
+      },
+      () => setHotkey(null),
+    );
+  }, [configVersion, showToast]);
+
   const d = data?.dashboard;
   return (
     <ActionsContext.Provider value={actions}>
+    <SelectionContext.Provider value={{ selected, select: setSelected, registry }}>
     <div className="app">
       <aside>
         <div className="brand">Tasker.md</div>
@@ -361,7 +491,7 @@ export default function App() {
       </aside>
       <main>
         <header>
-          <h1>{VIEWS.find((v) => v.id === view)?.label ?? (view === "filter-new" ? "Neuer Filter" : activeFilter?.name)}</h1>
+          <h1>{VIEWS.find((v) => v.id === view)?.label ?? (view === "filter-new" ? "Suche / neuer Filter" : activeFilter?.name)}</h1>
           <div className="segmented" role="group" aria-label="Bereich">
             {(["work", "private", "all"] as const).map((s) => (
               <button key={s} className={scope === s ? "active" : undefined} onClick={() => setScope(s)}>
@@ -409,6 +539,18 @@ export default function App() {
           </details>
         )}
       </main>
+      {dateTask && (
+        <DateDialog
+          task={dateTask}
+          onClose={() => setDateTask(null)}
+          onPick={(date) => {
+            const t = dateTask;
+            setDateTask(null);
+            void actions.scheduleOn(t, date);
+          }}
+        />
+      )}
+      {showHelp && <ShortcutHelp hotkey={hotkey} onClose={() => setShowHelp(false)} />}
       {showQuick && (
         <QuickEntry demo={demo} readOnly={data?.source === "demo"} onClose={() => setShowQuick(false)} onAdded={onQuickAdded} />
       )}
@@ -416,6 +558,7 @@ export default function App() {
         <Settings
           onClose={() => setShowSettings(false)}
           onSaved={() => {
+            void invoke<{ active: boolean; error: string | null }>("hotkey_apply").then((s) => s.error && showToast(s.error));
             setConfigVersion((v) => v + 1);
             setVersion((v) => v + 1);
             showToast("Einstellungen gespeichert.");
@@ -451,6 +594,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </SelectionContext.Provider>
     </ActionsContext.Provider>
   );
 }

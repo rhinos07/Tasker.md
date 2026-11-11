@@ -5,6 +5,7 @@ mod calendar;
 mod filters;
 mod focus;
 mod google;
+mod hotkey;
 mod index_cache;
 mod jira;
 mod quick;
@@ -98,6 +99,41 @@ fn complete_task(app: tauri::AppHandle, target: TaskTarget, demo: Option<bool>) 
     let cfg = writable_config(&app, demo.unwrap_or(false))?;
     edit_line(&cfg.vault.path, &target.path, target.line, &target.raw, &LineEdit::Complete, today())
         .map_err(|e| e.to_string())
+}
+
+/// Priorität setzen: `high` (⏫), `medium` (🔼) oder `none`.
+#[tauri::command]
+fn set_priority(app: tauri::AppHandle, target: TaskTarget, priority: String, demo: Option<bool>) -> Result<EditResult, String> {
+    use tasker_core::task::Priority;
+    let p = match priority.as_str() {
+        "highest" => Priority::Highest,
+        "high" => Priority::High,
+        "medium" => Priority::Medium,
+        "low" => Priority::Low,
+        "lowest" => Priority::Lowest,
+        "none" => Priority::None,
+        other => return Err(format!("Unbekannte Priorität: {other}")),
+    };
+    let cfg = writable_config(&app, demo.unwrap_or(false))?;
+    edit_line(&cfg.vault.path, &target.path, target.line, &target.raw, &LineEdit::SetPriority(p), today())
+        .map_err(|e| e.to_string())
+}
+
+/// Öffnet die Notiz in Obsidian, mit Zeilensprung, wenn Advanced URI aktiv ist. Liest `.obsidian/` nur.
+#[tauri::command]
+fn open_in_obsidian(
+    app: tauri::AppHandle,
+    path: String,
+    line: usize,
+    demo: Option<bool>,
+) -> Result<tasker_core::obsidian::ObsidianLink, String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (cfg, _) = resolve_config(&app, demo.unwrap_or(false))?;
+    let link = tasker_core::obsidian::link(&cfg, &path, line);
+    app.opener()
+        .open_url(&link.url, None::<&str>)
+        .map_err(|_| "Obsidian ließ sich nicht öffnen. Ist es installiert?".to_string())?;
+    Ok(link)
 }
 
 /// `today = true` setzt ⏳ auf heute, `false` entfernt ⏳.
@@ -339,11 +375,22 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(hotkey::plugin())
+        .manage(hotkey::HotkeyState::default())
+        .setup(|app| {
+            hotkey::apply(app.handle());
+            Ok(())
+        })
         .manage(watcher::WatchState::default())
         .manage(today::BlockLock::default())
         .manage(focus::FocusLock::default())
         .invoke_handler(tauri::generate_handler![
             get_overview,
+            set_priority,
+            open_in_obsidian,
+            hotkey::hotkey_status,
+            hotkey::hotkey_apply,
+            hotkey::quick_window,
             filters::filter_run,
             filters::filters_list,
             filters::filters_save,

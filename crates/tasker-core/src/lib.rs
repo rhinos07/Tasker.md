@@ -9,6 +9,7 @@ pub mod focus;
 pub mod focuslog;
 pub mod index;
 pub mod jira;
+pub mod obsidian;
 pub mod quick;
 pub mod task;
 pub mod today;

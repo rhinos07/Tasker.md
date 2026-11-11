@@ -21,6 +21,35 @@ pub struct Config {
     pub focus: FocusConfig,
     /// eigene Filter (SPEC 6.3)
     pub filters: Vec<crate::filter::SavedFilter>,
+    pub hotkeys: HotkeysConfig,
+    pub obsidian: ObsidianConfig,
+}
+
+/// Globales Tastenkürzel (SPEC 6.6). Leer = aus.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct HotkeysConfig {
+    pub quick_capture: String,
+}
+
+impl Default for HotkeysConfig {
+    fn default() -> Self {
+        Self { quick_capture: "CmdOrCtrl+Alt+Space".into() }
+    }
+}
+
+/// In Obsidian öffnen (SPEC 6.1)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ObsidianConfig {
+    /// `auto` (verwenden, wenn installiert) oder `never`
+    pub use_advanced_uri: String,
+}
+
+impl Default for ObsidianConfig {
+    fn default() -> Self {
+        Self { use_advanced_uri: "auto".into() }
+    }
 }
 
 /// Kalender (SPEC 7), nur lesen.
@@ -314,6 +343,8 @@ impl Config {
             timeline: TimelineConfig::default(),
             calendar: CalendarConfig::default(),
             focus: FocusConfig::default(),
+            hotkeys: HotkeysConfig::default(),
+            obsidian: ObsidianConfig::default(),
             filters: vec![
                 crate::filter::SavedFilter { name: "Telefonate".into(), query: "kontext:@telefon & !warten".into() },
                 crate::filter::SavedFilter {

@@ -3,7 +3,7 @@
 Desktop-Dashboard (Windows, macOS) für einen Obsidian-Vault nach **GTD**, mit Jira- und Kalender-Einblendung.
 Der Vault bleibt die einzige Quelle der Wahrheit. Tasker.md ist nur eine Oberfläche darüber.
 
-> Status: in Arbeit. Es laufen: Heute mit Zeitleiste, Dashboard, Projekte, Jira (nur lesen), Google Kalender (nur lesen), Fokus-Timer mit Vault-Log und Jira-Tageszusammenfassung, Abhaken und „⏳ heute“, Schnelleingabe (Taste `q`), Demnächst mit Umplanen per Drag & Drop, eigene Filter, Einstellungen. Es folgen: Tastatur und globaler Hotkey.
+> Status: in Arbeit. Es laufen: Heute mit Zeitleiste, Dashboard, Projekte, Jira (nur lesen), Google Kalender (nur lesen), Fokus-Timer mit Vault-Log und Jira-Tageszusammenfassung, Abhaken und „⏳ heute“, Schnelleingabe (Taste `q`), Demnächst mit Umplanen per Drag & Drop, eigene Filter, Tastaturbedienung (Übersicht mit `?`) und globales Kürzel für die Schnellerfassung, In Obsidian öffnen, Einstellungen. Es folgt: Timer im Tray.
 > Die vollständige Spezifikation steht in [SPEC.md](SPEC.md).
 
 ## Funktionen (Ziel der ersten Version)

@@ -32,6 +32,8 @@ interface Config {
     worklog: { roundToMinutes: number };
   };
   calendar: { refreshMinutes: number; daysAhead: number };
+  hotkeys: { quickCapture: string };
+  obsidian: { useAdvancedUri: string };
 }
 
 interface SettingsData {
@@ -40,13 +42,14 @@ interface SettingsData {
   config: Config;
 }
 
-type Tab = "vault" | "gtd" | "focus" | "jira" | "calendar";
+type Tab = "vault" | "gtd" | "focus" | "jira" | "calendar" | "keys";
 const TABS: { id: Tab; label: string }[] = [
   { id: "vault", label: "Vault" },
   { id: "gtd", label: "GTD" },
   { id: "focus", label: "Heute & Fokus" },
   { id: "jira", label: "Jira" },
   { id: "calendar", label: "Kalender" },
+  { id: "keys", label: "Bedienung" },
 ];
 
 const lines = (v: string[]) => v.join("\n");
@@ -145,6 +148,8 @@ export default function Settings({ onClose, onSaved }: { onClose: () => void; on
         worklog: { roundToMinutes: c.jira.worklog.roundToMinutes },
       },
       calendar: { refreshMinutes: c.calendar.refreshMinutes, daysAhead: c.calendar.daysAhead },
+      hotkeys: { quickCapture: c.hotkeys.quickCapture.trim() },
+      obsidian: c.obsidian,
     };
     try {
       await invoke("save_settings", { patch });
@@ -297,6 +302,28 @@ export default function Settings({ onClose, onSaved }: { onClose: () => void; on
                   <input type="number" min={0} value={c.jira.worklog.roundToMinutes} onChange={(e) => set("jira", { worklog: { ...c.jira.worklog, roundToMinutes: num(e.target.value) } })} />
                 </Field>
               </div>
+            </>
+          )}
+          {tab === "keys" && (
+            <>
+              <h3>Globales Tastenkürzel</h3>
+              <Field
+                label="Schnellerfassung"
+                hint="Öffnet die Schnellerfassung auch, wenn die App im Hintergrund ist. Beispiele: CmdOrCtrl+Alt+Space, Ctrl+Shift+T. Leer = aus. Die App muss laufen."
+              >
+                <input value={c.hotkeys.quickCapture} onChange={(e) => set("hotkeys", { quickCapture: e.target.value })} />
+              </Field>
+              <h3>In Obsidian öffnen</h3>
+              <Field
+                label="Zeilensprung über das Plugin „Advanced URI“"
+                hint="Ist das Plugin im Vault aktiv, springt „o“ direkt auf die Zeile. Sonst öffnet die App die Notiz und legt den Aufgabentext in die Zwischenablage. Die App liest .obsidian/ nur."
+              >
+                <select value={c.obsidian.useAdvancedUri} onChange={(e) => set("obsidian", { useAdvancedUri: e.target.value })}>
+                  <option value="auto">verwenden, wenn installiert</option>
+                  <option value="never">nie verwenden</option>
+                </select>
+              </Field>
+              <p className="muted small">Alle Tastenkürzel in der App zeigt die Taste „?“.</p>
             </>
           )}
           {tab === "calendar" && (

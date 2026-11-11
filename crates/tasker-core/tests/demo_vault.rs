@@ -114,3 +114,57 @@ fn example_config_parses() {
     assert_eq!(c.frontmatter.jira, "jira");
     assert_eq!(c.waiting_tag, "#warten");
 }
+
+/// Kopiert den Demo-Vault in ein temporäres Verzeichnis, damit Schreibtests das Repo nicht verändern.
+fn temp_vault(name: &str) -> Config {
+    let src = cfg().vault.path;
+    let dst = std::env::temp_dir().join(format!("tasker-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dst);
+    for e in walkdir::WalkDir::new(&src).into_iter().filter_map(Result::ok) {
+        let rel = e.path().strip_prefix(&src).unwrap();
+        let to = dst.join(rel);
+        if e.file_type().is_dir() {
+            std::fs::create_dir_all(&to).unwrap();
+        } else {
+            std::fs::copy(e.path(), &to).unwrap();
+        }
+    }
+    Config::for_vault(dst)
+}
+
+#[test]
+fn complete_undo_schedule_roundtrip_on_disk() {
+    use tasker_core::edit::{edit_line, EditError, LineEdit};
+    let c = temp_vault("roundtrip");
+    let rel = "10 Projekte/Gartenhaus/Gartenhaus.md";
+    let file = c.vault.path.join(rel);
+    let original = std::fs::read(&file).unwrap();
+
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let t = idx.tasks.iter().find(|t| t.task.description == "Dachfläche ausmessen").unwrap();
+
+    // Abhaken → gh-b ist danach nicht mehr blockiert
+    let r = edit_line(&c.vault.path, rel, t.task.line, &t.task.raw, &LineEdit::Complete, today()).unwrap();
+    assert!(r.new.ends_with("✅ 2026-11-11"));
+    let idx2 = tasker_core::load_index(&c, today()).unwrap();
+    let d = idx2.dashboard(&c, None, today());
+    assert!(descs(&d.next_actions["#@computer"]).contains(&"Dachpappe bestellen"));
+
+    // Rückgängig → Datei ist byte-gleich zum Original
+    edit_line(&c.vault.path, rel, r.line, &r.new, &LineEdit::Replace(r.old.clone()), today()).unwrap();
+    assert_eq!(std::fs::read(&file).unwrap(), original);
+
+    // ⏳ heute setzen → erscheint mit Datum, Rest der Datei unverändert
+    let s = edit_line(&c.vault.path, rel, t.task.line, &t.task.raw, &LineEdit::SetScheduled(Some(today())), today()).unwrap();
+    assert_eq!(s.new, "- [ ] Dachfläche ausmessen #@haus 🆔 gh-a ⏳ 2026-11-11");
+    let after = std::fs::read_to_string(&file).unwrap();
+    let before = String::from_utf8(original.clone()).unwrap();
+    let diff: Vec<_> = before.lines().zip(after.lines()).filter(|(a, b)| a != b).collect();
+    assert_eq!(diff.len(), 1, "genau eine Zeile geändert");
+
+    // Konflikt: alte Fassung der Zeile wird nicht mehr akzeptiert
+    let e = edit_line(&c.vault.path, rel, t.task.line, &t.task.raw, &LineEdit::Complete, today()).unwrap_err();
+    assert_eq!(e, EditError::Conflict);
+
+    std::fs::remove_dir_all(&c.vault.path).unwrap();
+}

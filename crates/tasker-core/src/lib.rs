@@ -2,6 +2,7 @@
 //! Ohne UI- und Netzwerk-Abhängigkeiten, damit alles gegen den Demo-Vault testbar ist.
 
 pub mod config;
+pub mod edit;
 pub mod index;
 pub mod jira;
 pub mod task;

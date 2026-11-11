@@ -71,3 +71,10 @@ export interface Overview {
   index: Index;
   dashboard: Dashboard;
 }
+
+export interface EditResult {
+  path: string;
+  line: number;
+  old: string;
+  new: string;
+}

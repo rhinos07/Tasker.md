@@ -58,7 +58,15 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .task { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 .task:last-child { border-bottom: none; }
-.box { color: var(--muted); }
+.check { border: none; padding: 0 2px; font-size: 16px; line-height: 1; color: var(--muted); }
+.check:not(:disabled):hover { color: var(--accent); }
+.plan { font-size: 11px; padding: 1px 6px; opacity: 0; transition: opacity .1s; }
+.task:hover .plan, .plan.active, .plan:focus-visible { opacity: 1; }
+.plan.active { color: var(--accent); border-color: var(--accent); }
+.meta.today { color: var(--accent); font-weight: 600; }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--text); color: var(--bg); padding: 8px 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); max-width: 70vw; }
+.toast button { color: var(--bg); border-color: var(--bg); }
+.toast .close { border: none; }
 .desc { flex: 1 1 200px; }
 .meta { font-size: 12px; color: var(--muted); }
 .due { color: var(--alert); }

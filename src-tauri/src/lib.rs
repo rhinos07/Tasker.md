@@ -1,8 +1,9 @@
 //! Tauri-Backend: stellt den Vault-Index als Befehle für die Oberfläche bereit.
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tasker_core::edit::{edit_line, EditResult, LineEdit};
 use tasker_core::{load_index, Config, Dashboard, Index, Scope};
 use tauri::Manager;
 
@@ -43,7 +44,7 @@ fn resolve_config(app: &tauri::AppHandle, demo: bool) -> Result<(Config, &'stati
 #[tauri::command]
 fn get_overview(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool>) -> Result<Overview, String> {
     let (cfg, source) = resolve_config(&app, demo.unwrap_or(false))?;
-    let today = chrono::Local::now().date_naive();
+    let today = today();
     let index = load_index(&cfg, today).map_err(|e| e.to_string())?;
     let scope = match scope.as_deref() {
         Some("work") => Some(Scope::Work),
@@ -54,6 +55,56 @@ fn get_overview(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool>
     Ok(Overview { vault_name: cfg.vault.name.clone(), source, index, dashboard })
 }
 
+/// Eine Aufgabenzeile, wie die Oberfläche sie aus dem Index kennt.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TaskTarget {
+    path: String,
+    line: usize,
+    raw: String,
+}
+
+/// Konfiguration für Schreibzugriffe. Der Demo-Vault im Repo ist schreibgeschützt,
+/// damit die Tests stabil bleiben.
+fn writable_config(app: &tauri::AppHandle, demo: bool) -> Result<Config, String> {
+    match resolve_config(app, demo)? {
+        (_, "demo") => Err("Der Demo-Vault ist schreibgeschützt.".into()),
+        (cfg, _) => Ok(cfg),
+    }
+}
+
+fn today() -> chrono::NaiveDate {
+    chrono::Local::now().date_naive()
+}
+
+#[tauri::command]
+fn complete_task(app: tauri::AppHandle, target: TaskTarget, demo: Option<bool>) -> Result<EditResult, String> {
+    let cfg = writable_config(&app, demo.unwrap_or(false))?;
+    edit_line(&cfg.vault.path, &target.path, target.line, &target.raw, &LineEdit::Complete, today())
+        .map_err(|e| e.to_string())
+}
+
+/// `today = true` setzt ⏳ auf heute, `false` entfernt ⏳.
+#[tauri::command]
+fn schedule_task(
+    app: tauri::AppHandle,
+    target: TaskTarget,
+    today_flag: bool,
+    demo: Option<bool>,
+) -> Result<EditResult, String> {
+    let cfg = writable_config(&app, demo.unwrap_or(false))?;
+    let edit = LineEdit::SetScheduled(today_flag.then(today));
+    edit_line(&cfg.vault.path, &target.path, target.line, &target.raw, &edit, today()).map_err(|e| e.to_string())
+}
+
+/// Macht eine Änderung rückgängig, aber nur, wenn die Zeile noch genau so aussieht wie nach der Änderung.
+#[tauri::command]
+fn undo_edit(app: tauri::AppHandle, edit: EditResult, demo: Option<bool>) -> Result<EditResult, String> {
+    let cfg = writable_config(&app, demo.unwrap_or(false))?;
+    edit_line(&cfg.vault.path, &edit.path, edit.line, &edit.new, &LineEdit::Replace(edit.old.clone()), today())
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn config_location(app: tauri::AppHandle) -> Option<String> {
     config_path(&app).map(|p| p.display().to_string())
@@ -62,7 +113,7 @@ fn config_location(app: tauri::AppHandle) -> Option<String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_overview, config_location])
+        .invoke_handler(tauri::generate_handler![get_overview, complete_task, schedule_task, undo_edit, config_location])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");
 }

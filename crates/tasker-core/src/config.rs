@@ -18,6 +18,7 @@ pub struct Config {
     pub jira: JiraConfig,
     pub timeline: TimelineConfig,
     pub calendar: CalendarConfig,
+    pub focus: FocusConfig,
 }
 
 /// Kalender (SPEC 7), nur lesen.
@@ -191,6 +192,62 @@ pub struct JiraConfig {
     pub refresh_minutes: u32,
     /// `scoped` (Token mit Bereichen, über api.atlassian.com) oder `classic`
     pub token_type: String,
+    pub worklog: WorklogConfig,
+}
+
+/// Tageszusammenfassung für Jira (SPEC 6.5). Buchen ist P2 und standardmäßig aus.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct WorklogConfig {
+    /// Rundung pro Ticket und Tag, `0` = aus
+    pub round_to_minutes: u32,
+    pub enabled: bool,
+}
+
+impl Default for WorklogConfig {
+    fn default() -> Self {
+        Self { round_to_minutes: 15, enabled: false }
+    }
+}
+
+/// Fokus-Timer (SPEC 6.5).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct FocusConfig {
+    pub enabled: bool,
+    pub pomodoro: PomodoroConfig,
+    pub write_to_vault: bool,
+    pub log_section: String,
+    /// Platzhalter `{date}`, `{minutes}`, `{sessions}`, `{task}`
+    pub log_format: String,
+    pub min_minutes: u32,
+}
+
+impl Default for FocusConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            pomodoro: PomodoroConfig::default(),
+            write_to_vault: true,
+            log_section: "## Log".into(),
+            log_format: crate::focuslog::DEFAULT_FORMAT.into(),
+            min_minutes: 5,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PomodoroConfig {
+    pub work: u32,
+    #[serde(rename = "break")]
+    pub pause: u32,
+}
+
+impl Default for PomodoroConfig {
+    fn default() -> Self {
+        Self { work: 25, pause: 5 }
+    }
 }
 
 pub const DEFAULT_JQL: &str =
@@ -205,6 +262,7 @@ impl Default for JiraConfig {
             project_keys: vec![],
             refresh_minutes: 15,
             token_type: "scoped".into(),
+            worklog: WorklogConfig::default(),
         }
     }
 }
@@ -253,6 +311,7 @@ impl Config {
             jira: JiraConfig { project_keys: vec!["ABC".into()], ..JiraConfig::default() },
             timeline: TimelineConfig::default(),
             calendar: CalendarConfig::default(),
+            focus: FocusConfig::default(),
         }
     }
 }

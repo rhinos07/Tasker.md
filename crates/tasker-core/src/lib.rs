@@ -3,6 +3,8 @@
 
 pub mod config;
 pub mod edit;
+pub mod focus;
+pub mod focuslog;
 pub mod index;
 pub mod jira;
 pub mod task;

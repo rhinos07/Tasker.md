@@ -168,3 +168,42 @@ fn complete_undo_schedule_roundtrip_on_disk() {
 
     std::fs::remove_dir_all(&c.vault.path).unwrap();
 }
+
+/// SPEC 12, Kriterium 5: zwei Pomodoros → eine Log-Zeile, die beim zweiten aktualisiert wird; 3 min schreiben nichts.
+#[test]
+fn focus_log_acceptance() {
+    use tasker_core::focus::{task_day_total, Session};
+    use tasker_core::focuslog::write_log;
+    let c = temp_vault("focuslog");
+    let rel = "10 Projekte/Gartenhaus/Gartenhaus.md";
+    let before = std::fs::read_to_string(c.vault.path.join(rel)).unwrap();
+    let session = |id: &str, minutes: u32| Session {
+        id: id.into(),
+        date: today(),
+        start: "09:00".into(),
+        minutes,
+        path: rel.into(),
+        description: "Fundament ausmessen".into(),
+        task_id: None,
+        line_keys: vec![],
+        project_keys: vec![],
+        project_mentions: vec![],
+    };
+    let f = &c.focus;
+    let mut sessions = vec![session("a", 3)];
+    let key = sessions[0].task_key();
+    assert_eq!(task_day_total(&sessions, today(), &key, f.min_minutes), (0, 0), "3 min zählen nicht");
+
+    for (i, id) in ["b", "c"].iter().enumerate() {
+        sessions.push(session(id, 25));
+        let (m, n) = task_day_total(&sessions, today(), &key, f.min_minutes);
+        write_log(&c.vault.path, rel, &f.log_section, &f.log_format, today(), "Fundament ausmessen", m, n).unwrap();
+        let text = std::fs::read_to_string(c.vault.path.join(rel)).unwrap();
+        let lines: Vec<&str> = text.lines().filter(|l| l.contains('⏱')).collect();
+        let expected = if i == 0 { "25 min (1 Sitzung)" } else { "50 min (2 Sitzungen)" };
+        assert_eq!(lines, vec![format!("- 2026-11-11 ⏱ {expected} · Fundament ausmessen").as_str()]);
+    }
+    let after = std::fs::read_to_string(c.vault.path.join(rel)).unwrap();
+    assert_eq!(after.lines().count(), before.lines().count() + 1, "genau eine Zeile dazu");
+    std::fs::remove_dir_all(&c.vault.path).unwrap();
+}

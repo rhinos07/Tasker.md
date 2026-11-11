@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
 import TodayView from "./TodayView";
+import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
@@ -47,6 +48,8 @@ function GroupedSection({ title, groups }: { title: string; groups: Record<strin
   );
 }
 
+const fmtH = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${m} min`);
+
 function Projects({ projects }: { projects: ProjectInfo[] }) {
   const active = projects.filter((p) => p.status === "aktiv");
   return (
@@ -62,6 +65,7 @@ function Projects({ projects }: { projects: ProjectInfo[] }) {
             <th>Offen</th>
             <th>Tage bis Termin</th>
             <th>Tage seit Review</th>
+            <th>Fokus Woche / gesamt</th>
             <th>Jira</th>
           </tr>
         </thead>
@@ -79,6 +83,7 @@ function Projects({ projects }: { projects: ProjectInfo[] }) {
                 {p.daysSinceReview ?? "–"}
                 {p.reviewDue && <span className="badge">Review fällig</span>}
               </td>
+              <td className="muted">{p.focusTotal > 0 ? `${fmtH(p.focusWeek)} / ${fmtH(p.focusTotal)}` : "–"}</td>
               <td>
                 {p.jiraAssigned.map((k) => (
                   <span key={k} className="badge jira">
@@ -109,7 +114,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
-  const [toast, setToast] = useState<{ text: string; undo?: EditResult } | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: EditResult; undoLog?: LogChange; complete?: TaskRef } | null>(
+    null,
+  );
   const toastTimer = useRef<number | undefined>(undefined);
 
   const load = useCallback(async () => {
@@ -152,10 +159,57 @@ export default function App() {
     };
   }, [demo]);
 
-  const showToast = (text: string, undo?: EditResult) => {
-    window.clearTimeout(toastTimer.current);
-    setToast({ text, undo });
-    toastTimer.current = window.setTimeout(() => setToast(null), 8000);
+  const showToast = useCallback(
+    (text: string, undo?: EditResult, extra?: { undoLog?: LogChange; complete?: TaskRef }, ms = 8000) => {
+      window.clearTimeout(toastTimer.current);
+      setToast({ text, undo, ...extra });
+      toastTimer.current = window.setTimeout(() => setToast(null), ms);
+    },
+    [],
+  );
+
+  // Fokus-Timer: verbuchte Sitzung melden, mit „Log rückgängig“ und (nach einem vollen Pomodoro) „Abhaken“
+  const onFocusFinished = useCallback(
+    (task: TaskRef, r: FinishResult, natural: boolean) => {
+      if (r.minutes === 0) {
+        showToast(r.logNote ?? "Unter einer Minute, nichts erfasst.");
+        return;
+      }
+      const parts = [`Fokus ${r.minutes} min verbucht`];
+      if (r.log) parts.push("ins Log geschrieben");
+      if (r.logNote) parts.push(r.logNote);
+      showToast(parts.join(" · "), undefined, { undoLog: r.log ?? undefined, complete: natural ? task : undefined }, 15000);
+      setVersion((v) => v + 1);
+      void loadRef.current();
+    },
+    [showToast],
+  );
+  const onFocusError = useCallback((m: string) => showToast(m), [showToast]);
+  const focus = useFocus(demo, onFocusFinished, onFocusError);
+
+  const undoLog = async (c: LogChange) => {
+    try {
+      await invoke("focus_undo_log", { change: c });
+      showToast("Log-Eintrag rückgängig gemacht (Zeit bleibt lokal erfasst).");
+    } catch (e) {
+      showToast(String(e));
+    }
+    setVersion((v) => v + 1);
+  };
+
+  // Nach dem Log-Eintrag kann sich die Zeilennummer verschoben haben: Aufgabe frisch nachschlagen.
+  const completeFresh = async (t: TaskRef) => {
+    try {
+      const o = await invoke<Overview>("get_overview", { scope: null, demo });
+      const fresh = o.index.tasks.find((x) => x.notePath === t.notePath && x.task.raw === t.task.raw && !x.task.done);
+      if (!fresh) {
+        showToast("Aufgabe nicht mehr gefunden, bitte in der Liste abhaken.");
+        return;
+      }
+      actions.complete(fresh);
+    } catch (e) {
+      showToast(String(e));
+    }
   };
 
   // Jede Änderung: schreiben, Ergebnis melden, neu laden. Konflikte werden gemeldet, nie überschrieben.
@@ -181,6 +235,8 @@ export default function App() {
     today: data?.index.today ?? null,
     busy,
     version,
+    focusEnabled: !!focus.settings?.enabled,
+    startFocus: focus.start,
     scheduleToday: (t) =>
       run("schedule_task", { target: target(t), todayFlag: true }, () => `Für heute geplant: ${t.task.description}`),
     complete: (t) => void run("complete_task", { target: target(t) }, () => `Erledigt: ${t.task.description}`),
@@ -233,6 +289,7 @@ export default function App() {
             ))}
           </div>
         </header>
+        <FocusBar f={focus} />
         {error && <div className="error">{error}</div>}
         {d && view === "dashboard" && (
           <div className="grid">
@@ -262,6 +319,16 @@ export default function App() {
           {toast.undo && (
             <button onClick={() => undo(toast.undo!)} disabled={busy}>
               Rückgängig
+            </button>
+          )}
+          {toast.complete && (
+            <button onClick={() => (setToast(null), void completeFresh(toast.complete!))} disabled={busy}>
+              Erledigt abhaken
+            </button>
+          )}
+          {toast.undoLog && (
+            <button onClick={() => (setToast(null), void undoLog(toast.undoLog!))} disabled={busy}>
+              Log rückgängig
             </button>
           )}
           <button className="close" onClick={() => setToast(null)} aria-label="Schließen">

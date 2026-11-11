@@ -15,6 +15,8 @@ export interface Actions {
   scheduleToday: (t: TaskRef) => Promise<boolean>;
   /** zählt jede Änderung am Vault hoch, damit Ansichten neu laden */
   version: number;
+  focusEnabled: boolean;
+  startFocus: (t: TaskRef) => void;
 }
 export const ActionsContext = createContext<Actions | null>(null);
 
@@ -54,6 +56,11 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
       >
         {plannedToday ? "⏳ heute ✕" : "⏳ heute"}
       </button>
+      {a.focusEnabled && !k.done && (
+        <button className="plan" onClick={() => a.startFocus(t)} title="Fokus-Timer starten">
+          ▶
+        </button>
+      )}
       <span className="source" title={t.notePath}>
         {t.noteName}
       </span>

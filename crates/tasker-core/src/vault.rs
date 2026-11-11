@@ -34,6 +34,9 @@ pub struct Note {
     pub jira_mentions: Vec<String>,
     /// im Frontmatter-Feld `jira` zugeordnete Schlüssel (nur Projekte)
     pub jira_assigned: Vec<String>,
+    /// Fokus-Einträge aus dem Log (Datum, Minuten)
+    #[serde(skip)]
+    pub focus_log: Vec<(chrono::NaiveDate, u32)>,
     pub warnings: Vec<String>,
 }
 
@@ -149,6 +152,7 @@ pub fn parse_note(rel_path: &str, text: &str, cfg: &Config, filter: &KeyFilter) 
 
     Note {
         jira_mentions: find_keys(text, filter),
+        focus_log: crate::focuslog::parse_log_minutes(text),
         path,
         name,
         kind,

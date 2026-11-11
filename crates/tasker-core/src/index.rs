@@ -3,7 +3,7 @@
 use crate::config::Config;
 use crate::task::Task;
 use crate::vault::{Note, NoteKind};
-use chrono::{Duration, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 
@@ -20,6 +20,7 @@ pub enum Scope {
 pub struct TaskRef {
     pub note_path: String,
     pub note_name: String,
+    pub note_kind: NoteKind,
     /// Projekt oder Bereich, zu dem die Aufgabe gehört
     pub area: Option<String>,
     pub scope: Scope,
@@ -44,6 +45,9 @@ pub struct ProjectInfo {
     pub next_actions: usize,
     pub jira_assigned: Vec<String>,
     pub jira_mentions: Vec<String>,
+    /// Fokus-Minuten laut Log: seit Montag dieser Woche und insgesamt
+    pub focus_week: u32,
+    pub focus_total: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -132,6 +136,7 @@ impl Index {
                 tasks.push(TaskRef {
                     note_path: n.path.clone(),
                     note_name: n.name.clone(),
+                    note_kind: n.kind,
                     area: area.clone(),
                     scope,
                     blocked,
@@ -152,6 +157,7 @@ impl Index {
                 let next_actions = mine.filter(|t| !t.blocked).count();
                 let days_since_review = review.map(|r| (today - r).num_days());
                 let status = n.fm_str(&fm.status);
+                let monday = today - Duration::days(i64::from(today.weekday().num_days_from_monday()));
                 ProjectInfo {
                     path: n.path.clone(),
                     name: n.name.clone(),
@@ -168,6 +174,8 @@ impl Index {
                     next_actions,
                     jira_assigned: n.jira_assigned.clone(),
                     jira_mentions: n.jira_mentions.clone(),
+                    focus_week: n.focus_log.iter().filter(|(d, _)| *d >= monday && *d <= today).map(|(_, m)| m).sum(),
+                    focus_total: n.focus_log.iter().map(|(_, m)| m).sum(),
                 }
             })
             .collect();

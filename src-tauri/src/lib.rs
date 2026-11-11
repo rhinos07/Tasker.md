@@ -2,6 +2,7 @@
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
 mod calendar;
+mod focus;
 mod google;
 mod jira;
 mod today;
@@ -329,8 +330,10 @@ fn config_location(app: tauri::AppHandle) -> Option<String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(watcher::WatchState::default())
         .manage(today::BlockLock::default())
+        .manage(focus::FocusLock::default())
         .invoke_handler(tauri::generate_handler![
             get_overview,
             complete_task,
@@ -353,7 +356,13 @@ pub fn run() {
             calendar::calendar_disconnect,
             calendar::calendar_list,
             calendar::calendar_select,
-            calendar::calendar_refresh
+            calendar::calendar_refresh,
+            focus::focus_settings,
+            focus::focus_finish,
+            focus::focus_undo_log,
+            focus::focus_day,
+            focus::focus_choose_ticket,
+            focus::focus_set_booked
         ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");

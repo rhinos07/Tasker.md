@@ -142,3 +142,21 @@ code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius:
 .calendar-setup input:not([type="checkbox"]) { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
 .calendar-setup .row { display: flex; gap: 8px; margin-top: 8px; }
 .choices { margin-bottom: 4px; }
+
+/* Fokus */
+.focus-bar { position: sticky; top: -16px; z-index: 10; display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; overflow: hidden; }
+.focus-bar.break { border-color: #2f9e57; }
+.focus-time { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 700; color: var(--accent); min-width: 64px; }
+.focus-bar.break .focus-time { color: #2f9e57; }
+.focus-label { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.focus-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); transition: width 1s linear; }
+.today-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+.today-bar button.active { background: var(--tag); color: var(--accent); border-color: var(--accent); }
+.focus-times { margin-bottom: 16px; }
+.focus-times h2 { display: flex; align-items: center; gap: 8px; }
+.focus-times input[type="date"], .focus-times select { font: inherit; font-size: 12px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.focus-times td.actions { white-space: nowrap; }
+.focus-times td.actions button { font-size: 12px; padding: 2px 8px; margin-left: 4px; }
+.focus-times tr.booked td { opacity: .5; }
+.focus-times .row { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+button.link { border: none; padding: 0; font-size: 11px; color: var(--muted); text-decoration: underline; }

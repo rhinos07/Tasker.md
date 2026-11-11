@@ -5,6 +5,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import FocusTimes from "./FocusTimes";
 import CalendarSetup, { type CalendarStatus } from "./CalendarSetup";
 import { ActionsContext, TaskRow } from "./tasks";
 import type { BlockView, CalendarEvent, Scope, TaskRef, TimeBlock, TodayData } from "./types";
@@ -198,6 +199,11 @@ function Timeline({
                   ☐
                 </button>
                 <span className="block-title">{t.task.description}</span>
+                {a.focusEnabled && (
+                  <button className="close" onClick={() => a.startFocus(t)} title="Fokus-Timer starten">
+                    ▶
+                  </button>
+                )}
                 <button className="close" onClick={() => onRemove(b)} title="Zeitblock entfernen (Aufgabe bleibt)">
                   ✕
                 </button>
@@ -237,6 +243,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   const dragRef = useRef<Drag | null>(null);
   const [cal, setCal] = useState<CalendarStatus | null>(null);
   const [showCal, setShowCal] = useState(false);
+  const [showTimes, setShowTimes] = useState(false);
   const [calBusy, setCalBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -371,6 +378,14 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   return (
     <>
       {error && <div className="error">{error}</div>}
+      {a.focusEnabled && (
+        <div className="today-bar">
+          <button className={showTimes ? "active" : undefined} onClick={() => setShowTimes((x) => !x)}>
+            ⏱ Fokus-Zeiten
+          </button>
+        </div>
+      )}
+      {showTimes && <FocusTimes demo={demo} />}
       <div className="today">
         <section className="card timeline-card">
           <h2>

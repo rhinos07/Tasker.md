@@ -25,6 +25,7 @@ export interface Task {
 export interface TaskRef {
   notePath: string;
   noteName: string;
+  noteKind: "project" | "area" | "journal" | "inbox" | "other";
   area: string | null;
   scope: Scope;
   blocked: boolean;
@@ -46,6 +47,8 @@ export interface ProjectInfo {
   nextActions: number;
   jiraAssigned: string[];
   jiraMentions: string[];
+  focusWeek: number;
+  focusTotal: number;
 }
 
 export interface Dashboard {

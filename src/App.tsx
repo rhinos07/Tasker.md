@@ -275,7 +275,7 @@ export default function App() {
     } finally {
       setBusy(false);
       setVersion((v) => v + 1);
-      await load();
+      await loadRef.current();
     }
   };
   const target = (t: TaskRef) => ({ path: t.notePath, line: t.task.line, raw: t.task.raw });

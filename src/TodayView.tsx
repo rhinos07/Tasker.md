@@ -263,6 +263,11 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
     void load();
   }, [load, a.version]);
 
+  // Immer die aktuelle load-Funktion: Ein Kalender-Abgleich, der beim Umschalten des Bereichs noch läuft,
+  // darf danach nicht mit dem alten Bereich neu laden.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   // Kalender: Status holen, bei veraltetem Cache neu laden (nicht im Demo-Vault)
   const syncCalendar = useCallback(
     async (force: boolean) => {
@@ -276,7 +281,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
           setCalBusy(true);
           await invoke("calendar_refresh");
           setCal(await invoke<CalendarStatus>("calendar_status"));
-          await load();
+          await loadRef.current();
         }
       } catch (e) {
         setError(String(e));
@@ -285,7 +290,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
         setCalBusy(false);
       }
     },
-    [demo, load],
+    [demo],
   );
 
   useEffect(() => {
@@ -294,8 +299,6 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
     return () => window.clearInterval(id);
   }, [syncCalendar]);
 
-  const loadRef = useRef(load);
-  loadRef.current = load;
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -312,7 +315,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
     } catch (e) {
       setError(String(e));
     }
-    await load();
+    await loadRef.current();
   };
 
   const onDropAt = async (startMin: number) => {
@@ -341,7 +344,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
     } catch (e) {
       setError(String(e));
     }
-    await load();
+    await loadRef.current();
   };
 
   const adopt = async (bv: BlockView) => {

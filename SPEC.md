@@ -175,7 +175,13 @@ Seitenleiste mit den Ansichten und den gespeicherten Filtern. Dazu Suche, Inbox-
 ## 6. Interaktionen
 
 ### 6.1 Aufgaben bearbeiten
-- **Abhaken:** `[x]` setzen und ` ✅ YYYY-MM-DD` anhängen. Bei 🔁 wird die nächste Instanz eingefügt, wie es das Tasks-Plugin macht. Rückgängig ist möglich.
+- **Abhaken:** `[x]` setzen und ` ✅ YYYY-MM-DD` anhängen. Rückgängig ist möglich.
+- **Wiederholung (🔁):** Beim Abhaken kommt die nächste Instanz in eine neue Zeile **über** die erledigte, wie im Tasks-Plugin. Rückgängig entfernt sie wieder.
+  - Regeln: `every [N] day/week/month/year`, `every other week`, `every weekday`, `every monday, thursday`, `every [N] weeks on friday`, `every month on the 15th` bzw. `on the last`, jeweils optional mit `when done`.
+  - Bezugsdatum ist 📅, sonst ⏳, sonst 🛫. Bei `when done` wird ab dem Tag des Abhakens gerechnet. Die übrigen Daten verschieben sich um denselben Abstand. Monatsenden werden gekappt (31.01. + 1 Monat = 28.02.).
+  - Ohne jedes Datum wird ab heute gerechnet, und die neue Instanz bekommt ⏳.
+  - Die neue Instanz ist offen und hat weder ✅ noch ❌ noch 🆔. ➕ wird auf heute gesetzt, ⛔ bleibt.
+  - Unbekannte Regeln: Die App verweigert das Abhaken mit einem Hinweis, die Datei bleibt unverändert.
 - **Planen:** ⏳ auf heute oder ein Datum setzen bzw. entfernen. Priorität auf ⏫, 🔼 oder keine setzen.
 - **Anlegen:** Dialog mit Text, Kontext, Priorität, ⏳, 📅, 🔁 und Ziel. Ziel ist ein Projekt (Abschnitt „Nächste Schritte“) oder ein Bereich (Abschnitt „Aufgaben ohne Projekt“). Fehlt der Abschnitt, wird er am Ende der Notiz angelegt.
 - **Inbox-Erfassung:** legt eine neue Notiz in `folders.inbox` an.
@@ -388,7 +394,7 @@ Alle Kriterien werden gegen `examples/demo-vault/` geprüft.
 
 1. **Abhängigkeiten:** Im Demo-Projekt „Gartenhaus“ hat die Aufgabe `🆔 gh-a` den Nachfolger `⛔ gh-a`. Dieser Nachfolger erscheint unter „Blockiert“, nicht unter „Nächste Aktionen“. Nach dem Abhaken von `gh-a` wechselt er in „Nächste Aktionen“.
 2. **Jira-Markierung:** `ABC-123` wird im Demo-Projekt erwähnt und bekommt in der Jira-Ansicht ein Badge „1 Notiz“. `UTF-8` und `DR-05` im selben Text werden nicht als Tickets erkannt. Ein zweites Demo-Projekt hat `jira: [ABC-124]` im Frontmatter. `ABC-124` zeigt das Badge „→ <Projekt>“, und eine Zeitsitzung an einer Aufgabe dieses Projekts ohne Schlüssel in der Zeile wird `ABC-124` eindeutig zugeordnet (nicht „vermutet“).
-3. **Abhaken:** Eine abgehakte Aufgabe erhält genau `[x]` und ` ✅ <heute>`. Alle anderen Bytes der Datei bleiben gleich.
+3. **Abhaken:** Eine abgehakte Aufgabe erhält genau `[x]` und ` ✅ <heute>`. Alle anderen Bytes der Datei bleiben gleich. Bei 🔁 steht darüber zusätzlich genau eine neue Zeile mit der nächsten Instanz, und Rückgängig stellt die Datei byte-genau wieder her.
 4. **Zeitleiste:** Wird eine Aufgabe mit ⏳ heute auf die Zeitleiste gezogen, entsteht ein Zeitblock. Die Quelldatei bleibt byte-gleich.
 5. **Fokus-Timer:** Ein 25-min-Pomodoro erzeugt einen lokalen Zeiteintrag an der richtigen Aufgabe und genau eine Zeile `- <heute> ⏱ 25 min (1 Sitzung) · <Aufgabe>` unter `## Log` der Demo-Projektnotiz. Ein zweiter Pomodoro am selben Tag ändert diese Zeile auf `50 min (2 Sitzungen)`, ohne eine neue Zeile anzulegen. Eine Sitzung von 3 min schreibt nichts in den Vault.
 6. **Schnelleingabe:** `Test morgen @telefon !1 >Gartenhaus` erzeugt genau eine Zeile `- [ ] Test #@telefon ⏫ ⏳ <morgen>` unter „Nächste Schritte“ der Demo-Projektnotiz.

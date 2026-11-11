@@ -193,8 +193,8 @@ function Timeline({
                 <button
                   className="check"
                   onClick={() => a.complete(t)}
-                  disabled={a.readOnly || a.busy || t.task.recurrence !== null}
-                  title={t.task.recurrence ? "Wiederkehrende Aufgaben vorerst in Obsidian abhaken" : "Erledigen"}
+                  disabled={a.readOnly || a.busy}
+                  title={t.task.recurrence ? "Erledigen, nächste Wiederholung wird angelegt" : "Erledigen"}
                 >
                   ☐
                 </button>

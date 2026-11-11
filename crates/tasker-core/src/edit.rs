@@ -2,6 +2,8 @@
 //! - die Zielzeile wird vor dem Schreiben neu gelesen und mit dem erwarteten Inhalt verglichen
 //! - nur diese eine Zeile ändert sich, alle anderen Bytes bleiben gleich
 //!   (Zeilenenden, BOM, abschließender Zeilenumbruch)
+//! - Ausnahme Wiederholung (🔁): Über der erledigten Zeile kommt die nächste Instanz dazu.
+//!   `EditResult.new` umfasst dann zwei Zeilen, Rückgängig ersetzt beide wieder durch die alte.
 //! - es wird nie etwas gelöscht
 
 use crate::task::{complete_line, parse_task_line, set_scheduled_line};
@@ -11,13 +13,13 @@ use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum LineEdit {
-    /// `[ ]` → `[x]` plus ✅ Datum
+    /// `[ ]` → `[x]` plus ✅ Datum; bei 🔁 zusätzlich die nächste Instanz darüber
     Complete,
     /// ⏳ setzen (`Some`) oder entfernen (`None`)
     SetScheduled(Option<NaiveDate>),
     /// Priorität setzen (`Priority::None` entfernt sie)
     SetPriority(crate::task::Priority),
-    /// Zeile durch einen festen Text ersetzen (für Rückgängig)
+    /// Zeile(n) durch einen festen Text ersetzen (für Rückgängig, darf mehrere Zeilen enthalten)
     Replace(String),
 }
 
@@ -26,8 +28,11 @@ pub enum LineEdit {
 #[serde(rename_all = "camelCase")]
 pub struct EditResult {
     pub path: String,
+    /// erste geänderte Zeile (0-basiert)
     pub line: usize,
+    /// alter Inhalt, Zeilen mit `\n` getrennt
     pub old: String,
+    /// neuer Inhalt, Zeilen mit `\n` getrennt
     pub new: String,
 }
 
@@ -41,8 +46,8 @@ pub enum EditError {
     Conflict,
     #[error("Die Zeile ist keine passende Aufgabe")]
     NotApplicable,
-    #[error("Wiederkehrende Aufgaben (🔁) bitte vorerst in Obsidian abhaken")]
-    RecurringNotSupported,
+    #[error("{0}")]
+    RecurringNotSupported(String),
 }
 
 /// Prüft, dass `rel` innerhalb des Vaults liegt und eine Markdown-Datei außerhalb von `.obsidian/` ist.
@@ -57,7 +62,20 @@ pub fn resolve_in_vault(root: &Path, rel: &str) -> Result<PathBuf, EditError> {
     Ok(root.join(rel_path))
 }
 
+fn line_ending(raw: &str) -> &'static str {
+    if raw.ends_with("\r\n") {
+        "\r\n"
+    } else if raw.ends_with('\n') {
+        "\n"
+    } else {
+        ""
+    }
+}
+
 /// Wendet die Änderung auf den Text an. Reine Funktion, gut testbar.
+///
+/// `expected` ist der erwartete Inhalt ab Zeile `line`; mehrere Zeilen sind mit `\n` getrennt
+/// (nur für Rückgängig nach einer Wiederholung).
 pub fn apply_to_text(
     text: &str,
     line: usize,
@@ -67,29 +85,43 @@ pub fn apply_to_text(
 ) -> Result<(String, String, String), EditError> {
     // Zeilen mit ihren Endungen behalten, damit alle anderen Bytes identisch bleiben.
     let mut parts: Vec<&str> = text.split_inclusive('\n').collect();
-    let raw_with_end = *parts.get(line).ok_or(EditError::Conflict)?;
-    let ending = if raw_with_end.ends_with("\r\n") {
-        "\r\n"
-    } else if raw_with_end.ends_with('\n') {
-        "\n"
-    } else {
-        ""
-    };
-    let mut current = &raw_with_end[..raw_with_end.len() - ending.len()];
-    // BOM gehört nicht zum Zeileninhalt
-    let bom = if line == 0 && current.starts_with('\u{FEFF}') { "\u{FEFF}" } else { "" };
-    current = &current[bom.len()..];
-    if current != expected {
+    let expected_lines: Vec<&str> = expected.split('\n').collect();
+    let count = expected_lines.len();
+    if expected.contains('\r') || line + count > parts.len() {
         return Err(EditError::Conflict);
+    }
+    // BOM gehört nicht zum Zeileninhalt
+    let bom = if line == 0 && parts[0].starts_with('\u{FEFF}') { "\u{FEFF}" } else { "" };
+    for (i, exp) in expected_lines.iter().enumerate() {
+        let raw = parts[line + i];
+        let content = &raw[..raw.len() - line_ending(raw).len()];
+        let content = if i == 0 { &content[bom.len()..] } else { content };
+        if content != *exp {
+            return Err(EditError::Conflict);
+        }
+    }
+    // Endung der letzten ersetzten Zeile bleibt am Ende; neue Zeilen dazwischen bekommen die Endung der Datei.
+    let ending = line_ending(parts[line + count - 1]);
+    let eol = match line_ending(parts[line]) {
+        "" => parts.iter().map(|p| line_ending(p)).find(|e| !e.is_empty()).unwrap_or("\n"),
+        e => e,
+    };
+    let current = expected;
+    if count > 1 && !matches!(edit, LineEdit::Replace(_)) {
+        return Err(EditError::NotApplicable);
     }
 
     let new_line = match edit {
         LineEdit::Complete => {
             let task = parse_task_line(line, current).ok_or(EditError::NotApplicable)?;
+            let done = complete_line(current, today).ok_or(EditError::NotApplicable)?;
             if task.recurrence.is_some() {
-                return Err(EditError::RecurringNotSupported);
+                let next = crate::recur::next_line(current, &task, today)
+                    .map_err(|e| EditError::RecurringNotSupported(e.to_string()))?;
+                format!("{next}\n{done}")
+            } else {
+                done
             }
-            complete_line(current, today).ok_or(EditError::NotApplicable)?
         }
         LineEdit::SetScheduled(d) => {
             let task = parse_task_line(line, current).ok_or(EditError::NotApplicable)?;
@@ -106,16 +138,16 @@ pub fn apply_to_text(
             crate::task::set_priority_line(current, *p).ok_or(EditError::NotApplicable)?
         }
         LineEdit::Replace(s) => {
-            if s.contains('\n') || s.contains('\r') {
+            if s.contains('\r') || s.is_empty() {
                 return Err(EditError::NotApplicable);
             }
             s.clone()
         }
     };
 
-    let replaced = format!("{bom}{new_line}{ending}");
+    let replaced = format!("{bom}{}{ending}", new_line.replace('\n', eol));
     let old = current.to_string();
-    parts[line] = &replaced;
+    parts.splice(line..line + count, [replaced.as_str()]);
     Ok((parts.concat(), old, new_line))
 }
 
@@ -197,9 +229,33 @@ mod tests {
     }
 
     #[test]
-    fn refuses_recurring_done_and_non_tasks() {
-        let r = apply_to_text("- [ ] Test 🔁 every week\n", 0, "- [ ] Test 🔁 every week", &LineEdit::Complete, d(TODAY));
-        assert_eq!(r.unwrap_err(), EditError::RecurringNotSupported);
+    fn recurring_inserts_next_above_and_undo_restores() {
+        let text = "# P\r\n- [ ] Gießen 🔁 every week ⏳ 2026-11-09\r\nende";
+        let (out, old, new) =
+            apply_to_text(text, 1, "- [ ] Gießen 🔁 every week ⏳ 2026-11-09", &LineEdit::Complete, d(TODAY)).unwrap();
+        assert_eq!(
+            out,
+            "# P\r\n- [ ] Gießen 🔁 every week ⏳ 2026-11-16\r\n- [x] Gießen 🔁 every week ⏳ 2026-11-09 ✅ 2026-11-11\r\nende"
+        );
+        assert_eq!(new, "- [ ] Gießen 🔁 every week ⏳ 2026-11-16\n- [x] Gießen 🔁 every week ⏳ 2026-11-09 ✅ 2026-11-11");
+        let (back, ..) = apply_to_text(&out, 1, &new, &LineEdit::Replace(old), d(TODAY)).unwrap();
+        assert_eq!(back, text, "Rückgängig stellt den Originaltext byte-genau wieder her");
+        // Rückgängig bricht ab, wenn eine der beiden Zeilen inzwischen geändert wurde
+        let changed = out.replace("2026-11-16", "2026-11-17");
+        let r = apply_to_text(&changed, 1, &new, &LineEdit::Replace("x".into()), d(TODAY));
+        assert_eq!(r.unwrap_err(), EditError::Conflict);
+    }
+
+    #[test]
+    fn recurring_last_line_without_newline() {
+        let (out, ..) = apply_to_text("- [ ] A 🔁 every day", 0, "- [ ] A 🔁 every day", &LineEdit::Complete, d(TODAY)).unwrap();
+        assert_eq!(out, "- [ ] A 🔁 every day ⏳ 2026-11-12\n- [x] A 🔁 every day ✅ 2026-11-11");
+    }
+
+    #[test]
+    fn refuses_unknown_recurrence_done_and_non_tasks() {
+        let r = apply_to_text("- [ ] Test 🔁 every blursday\n", 0, "- [ ] Test 🔁 every blursday", &LineEdit::Complete, d(TODAY));
+        assert!(matches!(r.unwrap_err(), EditError::RecurringNotSupported(m) if m.contains("every blursday")));
         let r = apply_to_text("- [x] Fertig\n", 0, "- [x] Fertig", &LineEdit::SetScheduled(None), d(TODAY));
         assert_eq!(r.unwrap_err(), EditError::NotApplicable);
         let r = apply_to_text("Text\n", 0, "Text", &LineEdit::Complete, d(TODAY));

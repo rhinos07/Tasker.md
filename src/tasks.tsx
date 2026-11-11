@@ -49,7 +49,6 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
   const { selected, ...selectable } = useSelectable(t);
   const k = t.task;
   const plannedToday = k.scheduled !== null && k.scheduled === a.today;
-  const recurring = k.recurrence !== null;
   const disabled = a.readOnly || a.busy;
   const hint = a.readOnly ? "Demo-Vault ist schreibgeschützt" : undefined;
   return (
@@ -62,8 +61,8 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
       <button
         className="check"
         onClick={() => a.complete(t)}
-        disabled={disabled || recurring}
-        title={recurring ? "Wiederkehrende Aufgaben vorerst in Obsidian abhaken" : (hint ?? "Abhaken")}
+        disabled={disabled}
+        title={hint ?? (k.recurrence ? "Abhaken, nächste Wiederholung wird angelegt" : "Abhaken")}
         aria-label={`Abhaken: ${k.description}`}
       >
         ☐

@@ -47,7 +47,7 @@ function Card({
         <button
           className="check"
           onClick={() => a.complete(t)}
-          disabled={a.readOnly || a.busy || k.recurrence !== null}
+          disabled={a.readOnly || a.busy}
           aria-label={`Abhaken: ${k.description}`}
         >
           ☐

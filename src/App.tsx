@@ -329,7 +329,15 @@ export default function App() {
       ),
     pickDate: (t) => setDateTask(t),
     openInObsidian: (t) => void openInObsidian(t),
-    complete: (t) => void run("complete_task", { target: target(t) }, () => `Erledigt: ${t.task.description}`),
+    complete: (t) =>
+      void run("complete_task", { target: target(t) }, (r) => {
+        // 🔁: Die erste Zeile von r.new ist die nächste Instanz
+        const next = r.new.includes("\n") ? /(?:⏳|📅|🛫)️?\s*(\d{4})-(\d{2})-(\d{2})/.exec(r.new.split("\n")[0]) : null;
+        if (!next) return `Erledigt: ${t.task.description}`;
+        const [, y, m, d] = next;
+        const year = y === data?.index.today?.slice(0, 4) ? "" : y;
+        return `Erledigt: ${t.task.description} · nächste am ${d}.${m}.${year}`;
+      }),
     toggleToday: (t) => {
       const isToday = t.task.scheduled !== null && t.task.scheduled === data?.index.today;
       void run("schedule_task", { target: target(t), todayFlag: !isToday }, () =>

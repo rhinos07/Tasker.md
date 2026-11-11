@@ -169,6 +169,35 @@ fn complete_undo_schedule_roundtrip_on_disk() {
     std::fs::remove_dir_all(&c.vault.path).unwrap();
 }
 
+/// SPEC 6.1: Abhaken einer 🔁-Aufgabe legt die nächste Instanz darüber an; Rückgängig stellt die Datei wieder her.
+#[test]
+fn recurring_complete_and_undo_on_disk() {
+    use tasker_core::edit::{edit_line, LineEdit};
+    let c = temp_vault("recur");
+    let rel = "20 Bereiche/Haus/Haus.md";
+    let file = c.vault.path.join(rel);
+    let original = std::fs::read(&file).unwrap();
+
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let t = idx.tasks.iter().find(|t| t.task.description == "Rauchmelder testen").unwrap();
+    let r = edit_line(&c.vault.path, rel, t.task.line, &t.task.raw, &LineEdit::Complete, today()).unwrap();
+    // ohne Datum: ab heute gerechnet, neue Instanz bekommt ⏳
+    assert_eq!(
+        r.new,
+        "- [ ] Rauchmelder testen #@haus 🔁 every year ⏳ 2027-11-11\n- [x] Rauchmelder testen #@haus 🔁 every year ✅ 2026-11-11"
+    );
+
+    let idx2 = tasker_core::load_index(&c, today()).unwrap();
+    let mine: Vec<_> = idx2.tasks.iter().filter(|t| t.task.description == "Rauchmelder testen").collect();
+    assert_eq!(mine.len(), 2);
+    assert!(!mine[0].task.done && mine[0].task.scheduled == Some(NaiveDate::from_ymd_opt(2027, 11, 11).unwrap()));
+    assert!(mine[1].task.done);
+
+    edit_line(&c.vault.path, rel, r.line, &r.new, &LineEdit::Replace(r.old.clone()), today()).unwrap();
+    assert_eq!(std::fs::read(&file).unwrap(), original);
+    std::fs::remove_dir_all(&c.vault.path).unwrap();
+}
+
 /// SPEC 12, Kriterium 5: zwei Pomodoros → eine Log-Zeile, die beim zweiten aktualisiert wird; 3 min schreiben nichts.
 #[test]
 fn focus_log_acceptance() {

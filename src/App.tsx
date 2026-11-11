@@ -133,13 +133,17 @@ export default function App() {
   const [showQuick, setShowQuick] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
 
+  // Nur die Antwort der jüngsten Anfrage zählt: Ein langsamer Lauf mit altem Filter darf keinen neueren überschreiben.
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     try {
       const o = await invoke<Overview>("get_overview", { scope: scope === "all" ? null : scope, demo });
+      if (seq !== loadSeq.current) return;
       setData(o);
       setError(null);
     } catch (e) {
-      setError(String(e));
+      if (seq === loadSeq.current) setError(String(e));
     }
   }, [scope, demo, configVersion]);
 

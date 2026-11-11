@@ -246,12 +246,16 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   const [showTimes, setShowTimes] = useState(false);
   const [calBusy, setCalBusy] = useState(false);
 
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     try {
-      setData(await invoke<TodayData>("get_today", { scope, demo }));
+      const d = await invoke<TodayData>("get_today", { scope, demo });
+      if (seq !== loadSeq.current) return; // veraltete Antwort (Filter inzwischen gewechselt)
+      setData(d);
       setError(null);
     } catch (e) {
-      setError(String(e));
+      if (seq === loadSeq.current) setError(String(e));
     }
   }, [scope, demo]);
 

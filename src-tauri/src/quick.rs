@@ -1,9 +1,13 @@
 //! Schnelleingabe (SPEC 6.2): Vorschau, Anlegen und Rückgängig.
 
+use crate::today::{delete_block, put_block, valid_block, BlockLock, MAX_BLOCK_MINUTES};
 use crate::{resolve_config, today, writable_config};
+use chrono::NaiveDate;
 use serde::Serialize;
 use tasker_core::create::{add_task, create_inbox_note, undo_insert, InsertResult};
 use tasker_core::quick::{note_title, parse_quick, QuickTask};
+use tasker_core::today::{parse_hm, TimeBlock};
+use tasker_core::task::parse_task_line;
 use tasker_core::{load_index, Config, Index};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -16,10 +20,21 @@ pub struct Target {
     pub heading: String,
 }
 
+/// Geplanter Zeitblock aus Uhrzeit und Dauer, Dauer schon aufgelöst.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockPlan {
+    date: NaiveDate,
+    start: String,
+    end: String,
+    minutes: u32,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preview {
     line: String,
+    block: Option<BlockPlan>,
     task: QuickTask,
     /// aufgelöstes Ziel; `None` = Inbox
     target: Option<Target>,
@@ -74,8 +89,17 @@ fn build(cfg: &Config, index: &Index, input: &str) -> Preview {
         Some(q) => resolve_target(&all, q),
         None => (None, vec![]),
     };
+    let block = task.block.as_ref().zip(task.scheduled).map(|(b, date)| {
+        let minutes = b.minutes.unwrap_or(cfg.timeline.default_block_minutes);
+        let end = parse_hm(&b.start).map(|t| (t + chrono::Duration::minutes(minutes as i64)).format("%H:%M").to_string()).unwrap_or_default();
+        BlockPlan { date, start: b.start.clone(), end, minutes }
+    });
     let problem = if task.description.trim().is_empty() {
         Some("Bitte einen Aufgabentext eingeben.".to_string())
+    } else if block.as_ref().is_some_and(|b| !valid_block(&b.start, b.minutes)) {
+        Some(format!("Zeitblock: Dauer 5 bis {} Minuten.", MAX_BLOCK_MINUTES))
+    } else if block.as_ref().is_some_and(|b| b.date < today()) {
+        Some("Zeitblock liegt in der Vergangenheit.".to_string())
     } else if task.target.is_some() && target.is_none() {
         Some(if candidates.is_empty() {
             "Kein Projekt oder Bereich mit diesem Namen.".to_string()
@@ -86,7 +110,7 @@ fn build(cfg: &Config, index: &Index, input: &str) -> Preview {
         None
     };
     let inbox_path = (task.target.is_none()).then(|| format!("{}/{}.md", cfg.folders.inbox, note_title(&task.description)));
-    Preview { line: task.line(), task, target, inbox_path, candidates, contexts: cfg.contexts.clone(), problem }
+    Preview { line: task.line(), block, task, target, inbox_path, candidates, contexts: cfg.contexts.clone(), problem }
 }
 
 #[tauri::command]
@@ -102,30 +126,60 @@ pub struct Added {
     #[serde(flatten)]
     result: InsertResult,
     target_name: String,
+    /// angelegter Zeitblock
+    block: Option<TimeBlock>,
+    /// Aufgabe angelegt, Block aber nicht
+    block_error: Option<String>,
 }
 
 #[tauri::command]
-pub fn quick_add(app: tauri::AppHandle, input: String, demo: Option<bool>) -> Result<Added, String> {
+pub fn quick_add(app: tauri::AppHandle, lock: tauri::State<'_, BlockLock>, input: String, demo: Option<bool>) -> Result<Added, String> {
     let cfg = writable_config(&app, demo.unwrap_or(false))?;
     let index = load_index(&cfg, today()).map_err(|e| e.to_string())?;
     let p = build(&cfg, &index, &input);
     if let Some(problem) = p.problem {
         return Err(problem);
     }
-    match p.target {
-        Some(t) => add_task(&cfg.vault.path, &t.path, &t.heading, &p.line)
-            .map(|result| Added { result, target_name: t.name })
-            .map_err(|e| e.to_string()),
-        None => create_inbox_note(&cfg.vault.path, &cfg.folders.inbox, &note_title(&p.task.description), &p.line)
-            .map(|result| Added { result, target_name: "Inbox".into() })
-            .map_err(|e| e.to_string()),
+    let (result, target_name) = match &p.target {
+        Some(t) => (add_task(&cfg.vault.path, &t.path, &t.heading, &p.line).map_err(|e| e.to_string())?, t.name.clone()),
+        None => (
+            create_inbox_note(&cfg.vault.path, &cfg.folders.inbox, &note_title(&p.task.description), &p.line).map_err(|e| e.to_string())?,
+            "Inbox".into(),
+        ),
+    };
+    let mut added = Added { result, target_name, block: None, block_error: None };
+    if let Some(plan) = p.block {
+        // Der Block hängt an Pfad und Beschreibung, wie sie der Index aus der neuen Zeile liest
+        let made = parse_task_line(0, &added.result.new)
+            .ok_or_else(|| "Neue Zeile nicht lesbar.".to_string())
+            .and_then(|t| {
+                let index = load_index(&cfg, today()).map_err(|e| e.to_string())?;
+                let block = TimeBlock {
+                    id: String::new(),
+                    date: plan.date,
+                    start: plan.start,
+                    minutes: plan.minutes,
+                    path: added.result.path.clone(),
+                    description: t.description,
+                };
+                put_block(&app, &lock, false, &index, block)
+            });
+        match made {
+            Ok(b) => added.block = Some(b),
+            Err(e) => added.block_error = Some(e),
+        }
     }
+    Ok(added)
 }
 
 #[tauri::command]
-pub fn quick_undo(app: tauri::AppHandle, result: InsertResult) -> Result<(), String> {
+pub fn quick_undo(app: tauri::AppHandle, lock: tauri::State<'_, BlockLock>, result: InsertResult, block_id: Option<String>) -> Result<(), String> {
     let cfg = writable_config(&app, false)?;
-    undo_insert(&cfg.vault.path, &result).map_err(|e| e.to_string())
+    undo_insert(&cfg.vault.path, &result).map_err(|e| e.to_string())?;
+    match block_id {
+        Some(id) => delete_block(&app, &lock, false, &id),
+        None => Ok(()),
+    }
 }
 
 #[cfg(test)]
@@ -162,5 +216,16 @@ mod tests {
         assert_eq!(area.target.map(|t| t.kind), Some("area"));
         let inbox = build(&cfg, &index, "Idee notieren");
         assert_eq!(inbox.inbox_path.as_deref(), Some("00 Inbox/Idee notieren.md"));
+        assert!(inbox.block.is_none());
+
+        // Uhrzeit und Dauer: Block am geplanten Tag, Zeile ohne Uhrzeit
+        let timed = build(&cfg, &index, "Konzept schreiben 14:00 90m >Gartenhaus");
+        let b = timed.block.expect("Zeitblock");
+        assert_eq!((b.date, b.start.as_str(), b.end.as_str(), b.minutes), (today(), "14:00", "15:30", 90));
+        assert_eq!(timed.line, format!("- [ ] Konzept schreiben ⏳ {}", today()));
+        assert!(timed.problem.is_none());
+        let default = build(&cfg, &index, "Kurz 9:00").block.unwrap();
+        assert_eq!((default.minutes, default.end.as_str()), (cfg.timeline.default_block_minutes, "09:30"));
+        assert!(build(&cfg, &index, "Lang 8:00 13h").problem.is_some(), "zu lang");
     }
 }

@@ -3,6 +3,7 @@
 //! Beispiel: `Müller anrufen morgen @telefon !1 >Gartenhaus`
 //! → `- [ ] Müller anrufen #@telefon ⏫ ⏳ <morgen>` mit Ziel „Gartenhaus“.
 //! `>Ziel` steht am Ende und darf Leerzeichen enthalten.
+//! Uhrzeit und Dauer (`14:00 90m`, `14-15:30`) ergeben einen lokalen Zeitblock und stehen nicht in der Zeile.
 
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
 use serde::Serialize;
@@ -19,6 +20,82 @@ pub struct QuickTask {
     pub due: Option<NaiveDate>,
     /// Text nach `>`, noch nicht aufgelöst
     pub target: Option<String>,
+    /// Uhrzeit (und Dauer) für einen Zeitblock am geplanten Tag
+    pub block: Option<QuickBlock>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QuickBlock {
+    /// `HH:MM`
+    pub start: String,
+    /// `None` = Standarddauer aus der Konfiguration
+    pub minutes: Option<u32>,
+}
+
+/// `14:00`, `9:30`, mit `allow_bare` auch `14`. Gibt Minuten seit Mitternacht zurück.
+fn clock(w: &str, allow_bare: bool) -> Option<u32> {
+    let (h, m) = match w.split_once(':') {
+        Some((h, m)) if m.len() == 2 => (h.parse::<u32>().ok()?, m.parse::<u32>().ok()?),
+        None if allow_bare => (w.parse::<u32>().ok()?, 0),
+        _ => return None,
+    };
+    (h < 24 && m < 60 && !w.starts_with('+') && !w.starts_with('-')).then_some(h * 60 + m)
+}
+
+fn hm(min: u32) -> String {
+    format!("{:02}:{:02}", min / 60, min % 60)
+}
+
+fn is_uhr(w: Option<&String>) -> bool {
+    w.is_some_and(|w| matches!(w.to_lowercase().as_str(), "uhr" | "h"))
+}
+
+/// Erkennt eine Uhrzeit ab `words[i]`: `14:00`, `14 Uhr`, `um 14`, `at 9:30`, `14-15:30`.
+/// Gibt Start, ggf. Dauer aus einer Spanne und die Zahl der verbrauchten Wörter zurück.
+fn parse_time(words: &[String], i: usize) -> Option<(u32, Option<u32>, usize)> {
+    let w = words.get(i)?.to_lowercase();
+    if w == "um" || w == "at" {
+        let (s, d, n) = parse_time_word(words, i + 1, true)?;
+        return Some((s, d, n + 1));
+    }
+    parse_time_word(words, i, false)
+}
+
+fn parse_time_word(words: &[String], i: usize, after_um: bool) -> Option<(u32, Option<u32>, usize)> {
+    let w = words.get(i)?;
+    let uhr = is_uhr(words.get(i + 1));
+    let extra = usize::from(uhr);
+    // Spanne: mindestens eine Seite mit Doppelpunkt, oder „Uhr“/„um“ dabei
+    if let Some((a, b)) = w.split_once('-') {
+        let bare = uhr || after_um || a.contains(':') || b.contains(':');
+        let (s, e) = (clock(a, bare)?, clock(b, bare)?);
+        return (e > s).then_some((s, Some(e - s), 1 + extra));
+    }
+    let s = clock(w, uhr || after_um)?;
+    Some((s, None, 1 + extra))
+}
+
+/// `90m`, `90min`, `1h`, `1,5h`, `1.5h`, `2h30`, `2h30m` → Minuten.
+fn parse_duration(w: &str) -> Option<u32> {
+    let w = w.to_lowercase();
+    let minutes = if let Some(n) = w.strip_suffix("min").or_else(|| w.strip_suffix('m')) {
+        if let Some((h, m)) = n.split_once('h') {
+            h.parse::<u32>().ok()? * 60 + m.parse::<u32>().ok()?
+        } else {
+            n.parse::<u32>().ok()?
+        }
+    } else if let Some((h, m)) = w.split_once('h') {
+        let hours: f64 = h.replace(',', ".").parse().ok()?;
+        let extra = if m.is_empty() { 0 } else { m.parse::<u32>().ok()? };
+        if !hours.is_finite() || hours < 0.0 || (extra > 0 && hours.fract() != 0.0) {
+            return None;
+        }
+        (hours * 60.0).round() as u32 + extra
+    } else {
+        return None;
+    };
+    (minutes > 0).then_some(minutes)
 }
 
 impl QuickTask {
@@ -178,6 +255,8 @@ pub fn parse_quick(input: &str, today: NaiveDate, waiting_tag: &str) -> QuickTas
     q.target = target;
     let words: Vec<String> = body.split_whitespace().map(String::from).collect();
     let mut desc: Vec<String> = vec![];
+    // (Position in desc, Wort, Minuten)
+    let mut durations: Vec<(usize, String, u32)> = vec![];
     let mut i = 0;
     while i < words.len() {
         let w = &words[i];
@@ -237,8 +316,32 @@ pub fn parse_quick(input: &str, today: NaiveDate, waiting_tag: &str) -> QuickTas
             i += n;
             continue;
         }
+        if q.block.is_none() {
+            if let Some((start, minutes, n)) = parse_time(&words, i) {
+                q.block = Some(QuickBlock { start: hm(start), minutes });
+                i += n;
+                continue;
+            }
+        }
+        if let Some(m) = parse_duration(w) {
+            durations.push((desc.len(), w.clone(), m));
+            i += 1;
+            continue;
+        }
         desc.push(w.clone());
         i += 1;
+    }
+    // Dauer gilt nur zusammen mit einer Uhrzeit, sonst bleibt sie Text
+    match q.block.as_mut() {
+        Some(b) if b.minutes.is_none() && durations.len() == 1 => b.minutes = Some(durations[0].2),
+        _ => {
+            for (at, w, _) in durations.into_iter().rev() {
+                desc.insert(at, w);
+            }
+        }
+    }
+    if q.block.is_some() && q.scheduled.is_none() {
+        q.scheduled = Some(today);
     }
     q.description = desc.join(" ");
     q
@@ -310,6 +413,30 @@ mod tests {
         assert_eq!(p("Lesen #buch").tags, vec!["#buch"]);
         assert_eq!(p("A >Release 2.0").target.as_deref(), Some("Release 2.0"));
         assert_eq!(p("A > ").target, None);
+    }
+
+    #[test]
+    fn time_and_duration() {
+        let b = |s: &str| p(s).block.map(|b| (b.start, b.minutes));
+        assert_eq!(b("Konzept schreiben 14:00 90m"), Some(("14:00".into(), Some(90))));
+        assert_eq!(p("Konzept schreiben 14:00 90m").line(), "- [ ] Konzept schreiben ⏳ 2026-11-11", "Zeit nicht in der Zeile");
+        assert_eq!(b("A 9:30"), Some(("09:30".into(), None)));
+        assert_eq!(b("A 14 Uhr 1h"), Some(("14:00".into(), Some(60))));
+        assert_eq!(b("A um 14"), Some(("14:00".into(), None)));
+        assert_eq!(b("A at 8:15 1,5h"), Some(("08:15".into(), Some(90))));
+        assert_eq!(b("A 14-15:30"), Some(("14:00".into(), Some(90))));
+        assert_eq!(b("A 14-16 Uhr"), Some(("14:00".into(), Some(120))));
+        assert_eq!(b("A 14:00 2h30"), Some(("14:00".into(), Some(150))));
+        assert_eq!(b("A 14:00 45min"), Some(("14:00".into(), Some(45))));
+        let q = p("Arzt morgen 10:00 30m @telefon");
+        assert_eq!((q.scheduled.unwrap().to_string(), q.description.as_str()), ("2026-11-12".into(), "Arzt"));
+        // ohne Uhrzeit bleibt eine Dauer Text; Zahlen ohne Doppelpunkt sind keine Uhrzeit
+        assert_eq!(p("Lauf 5m").description, "Lauf 5m");
+        assert_eq!(p("Lauf 5m").block, None);
+        assert_eq!(p("Seite 14 lesen").block, None);
+        assert_eq!(p("Kapitel 3-4 lesen").block, None);
+        assert_eq!(p("Version 25:00").block, None);
+        assert_eq!(p("Zwei Uhr 14:00 15:00").description, "Zwei Uhr 15:00", "nur eine Uhrzeit");
     }
 
     #[test]

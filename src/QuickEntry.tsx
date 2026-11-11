@@ -11,8 +11,16 @@ interface Target {
   heading: string;
 }
 
+interface BlockPlan {
+  date: string;
+  start: string;
+  end: string;
+  minutes: number;
+}
+
 interface Preview {
   line: string;
+  block: BlockPlan | null;
   target: Target | null;
   inboxPath: string | null;
   candidates: Target[];
@@ -27,6 +35,21 @@ export interface Added {
   addedHeading: boolean;
   createdFile: boolean;
   targetName: string;
+  /** angelegter Zeitblock */
+  block: { id: string; date: string; start: string; minutes: number } | null;
+  /** Aufgabe angelegt, Zeitblock nicht */
+  blockError: string | null;
+}
+
+/** „heute“, „morgen“ oder TT.MM. für den Tag eines Zeitblocks. */
+export function blockDay(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - t.getTime()) / 86400000);
+  if (diff === 0) return "heute";
+  if (diff === 1) return "morgen";
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
 }
 
 type Suggestion = { label: string; hint: string; apply: (input: string) => string };
@@ -173,13 +196,18 @@ export default function QuickEntry({
                 preview.inboxPath && <>→ neue Notiz {preview.inboxPath}</>
               )}
             </div>
+            {preview.block && (
+              <div className="muted small">
+                ⏱ Zeitblock {blockDay(preview.block.date)} {preview.block.start}–{preview.block.end} ({preview.block.minutes} min, nur lokal)
+              </div>
+            )}
             {preview.problem && <div className="warn-text small">{preview.problem}</div>}
           </div>
         )}
         {error && <div className="error">{error}</div>}
         {readOnly && <div className="muted small">Demo-Vault ist schreibgeschützt, nur Vorschau.</div>}
         <div className="quick-help muted small">
-          heute · morgen · freitag · in 3 tagen · 24.12. · <b>fällig</b> … → 📅 · !1 ⏫ !2 🔼 · @kontext · warten · jeden montag · täglich ·{" "}
+          heute · morgen · freitag · in 3 tagen · 24.12. · <b>fällig</b> … → 📅 · !1 ⏫ !2 🔼 · @kontext · warten · jeden montag · täglich · 14:00 90m · 14-15:30 → Zeitblock ·{" "}
           <b>&gt;Ziel</b> am Ende · Enter speichern, Umschalt+Enter weitere, Esc schließen
         </div>
       </div>

@@ -130,11 +130,15 @@ pub fn today_view(index: &Index, _cfg: &Config, scope: Option<Scope>, today: Nai
     TodayView { today: Some(today), in_progress, scheduled, due, important, blocks: today_blocks, leftover }
 }
 
-/// Entfernt Blöcke, die nicht mehr gebraucht werden: älter als `keep_days` oder Aufgabe erledigt bzw. verschwunden.
+/// Wie weit im Voraus Blöcke bleiben (Schnelleingabe „freitag 14:00“).
+pub const FUTURE_DAYS: i64 = 60;
+
+/// Entfernt Blöcke, die nicht mehr gebraucht werden: älter als `keep_days`, zu weit in der Zukunft
+/// oder Aufgabe erledigt bzw. verschwunden.
 pub fn prune_blocks(blocks: &[TimeBlock], index: &Index, today: NaiveDate, keep_days: i64) -> Vec<TimeBlock> {
     blocks
         .iter()
-        .filter(|b| (today - b.date).num_days() <= keep_days && b.date <= today + chrono::Duration::days(1))
+        .filter(|b| (today - b.date).num_days() <= keep_days && b.date <= today + chrono::Duration::days(FUTURE_DAYS))
         .filter(|b| find_task(index, b).is_some())
         .cloned()
         .collect()
@@ -199,6 +203,8 @@ mod tests {
         let kept = prune_blocks(&blocks, &idx, d("2026-11-11"), 7);
         assert_eq!(kept.len(), 4, "nur der Block der erledigten Aufgabe fällt weg");
         assert!(prune_blocks(&blocks, &idx, d("2026-11-30"), 7).is_empty(), "alte Blöcke fallen weg");
+        assert_eq!(prune_blocks(&blocks, &idx, d("2026-09-20"), 7).len(), 4, "geplante Blöcke bis {FUTURE_DAYS} Tage voraus bleiben");
+        assert!(prune_blocks(&blocks, &idx, d("2026-09-01"), 7).is_empty());
     }
 
     #[test]

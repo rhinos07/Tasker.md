@@ -216,6 +216,16 @@ Ein Eingabefeld übersetzt natürliche Sprache in Tasks-Syntax:
 | `warten` | `#warten` |
 | `jeden montag`, `jede woche`, `täglich` | `🔁 every monday` usw. |
 | `>Name` (am Ende, Leerzeichen erlaubt) | Ziel-Projekt oder -Bereich, mit Autovervollständigung aus dem Index |
+| `14:00`, `9:30`, `14 Uhr`, `um 14`, `at 9:30` | lokaler Zeitblock ab dieser Uhrzeit (5.1), Dauer `timeline.defaultBlockMinutes` |
+| `14-15:30`, `14-16 Uhr` | Zeitblock mit dieser Spanne |
+| `90m`, `45min`, `1h`, `1,5h`, `2h30` nach einer Uhrzeit | Dauer des Zeitblocks (ohne Uhrzeit bleibt es Text) |
+
+**Uhrzeit und Dauer:**
+- Sie stehen **nicht** in der Zeile, denn Zeitblöcke sind lokal (`timeblocks.json`).
+- Der Block liegt am geplanten Tag. Ohne Datum bekommt die Aufgabe `⏳` heute.
+- Erlaubt sind 5 Minuten bis 12 Stunden. Ein Tag in der Vergangenheit wird abgelehnt.
+- Blöcke bleiben bis 60 Tage im Voraus erhalten.
+- „Rückgängig“ entfernt Zeile und Block.
 
 Beispiel: `Müller anrufen morgen @telefon !1 >Gartenhaus` ergibt `- [ ] Müller anrufen #@telefon ⏫ ⏳ <morgen>` unter „Nächste Schritte“ im Projekt Gartenhaus.
 

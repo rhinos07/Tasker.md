@@ -6,7 +6,7 @@ import TodayView from "./TodayView";
 import UpcomingView from "./UpcomingView";
 import FilterView, { type SavedFilter } from "./FilterView";
 import Settings, { type Tab as SettingsTab } from "./Settings";
-import QuickEntry, { type Added } from "./QuickEntry";
+import QuickEntry, { blockDay, type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import { DateDialog, SelectionContext, ShortcutHelp, scrollToKey, visibleKeys } from "./keyboard";
@@ -232,13 +232,15 @@ export default function App() {
 
   const onQuickAdded = (a: Added) => {
     const where = a.createdFile ? `neue Notiz ${a.path}` : a.targetName;
-    showToast(`Angelegt in ${where}`, undefined, { undoInsert: a.createdFile ? undefined : a });
+    const block = a.block ? `, Zeitblock ${blockDay(a.block.date)} ${a.block.start}` : "";
+    const blockErr = a.blockError ? ` (Zeitblock nicht angelegt: ${a.blockError})` : "";
+    showToast(`Angelegt in ${where}${block}${blockErr}`, undefined, { undoInsert: a.createdFile ? undefined : a });
     setVersion((v) => v + 1);
     void load();
   };
   const undoInsert = async (a: Added) => {
     try {
-      await invoke("quick_undo", { result: a });
+      await invoke("quick_undo", { result: a, blockId: a.block?.id ?? null });
       showToast("Neue Aufgabe wieder entfernt.");
     } catch (e) {
       showToast(String(e));

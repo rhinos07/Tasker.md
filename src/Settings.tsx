@@ -90,6 +90,20 @@ export default function Settings({
   useEffect(() => {
     void invoke<boolean>("demo_available").then(setDemoAvailable, () => setDemoAvailable(false));
   }, []);
+  // Autostart liegt im Betriebssystem, nicht in der Konfiguration: wirkt sofort, ohne „Speichern“
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+  const [autostartError, setAutostartError] = useState<string | null>(null);
+  useEffect(() => {
+    void invoke<boolean>("autostart_status").then(setAutostart, (e) => setAutostartError(String(e)));
+  }, []);
+  const toggleAutostart = async (on: boolean) => {
+    setAutostartError(null);
+    try {
+      setAutostart(await invoke<boolean>("autostart_set", { enabled: on }));
+    } catch (e) {
+      setAutostartError(String(e));
+    }
+  };
   const [data, setData] = useState<SettingsData | null>(null);
   const [c, setC] = useState<Config | null>(null);
   // Listen als Text, damit beim Tippen keine Zeilen verschwinden
@@ -357,10 +371,25 @@ export default function Settings({
               <h3>Globales Tastenkürzel</h3>
               <Field
                 label="Schnellerfassung"
-                hint="Öffnet die Schnellerfassung auch, wenn die App im Hintergrund ist. Beispiele: CmdOrCtrl+Alt+Space, Ctrl+Shift+T. Leer = aus. Die App muss laufen."
+                hint="Öffnet die Schnellerfassung auch, wenn die App im Hintergrund ist. Beispiele: CmdOrCtrl+Alt+Space, Ctrl+Shift+T. Leer = aus. Die App muss laufen, z. B. per Autostart im Infobereich."
               >
                 <input value={c.hotkeys.quickCapture} onChange={(e) => set("hotkeys", { quickCapture: e.target.value })} />
               </Field>
+              <h3>Start</h3>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={autostart ?? false}
+                  disabled={autostart === null}
+                  onChange={(e) => void toggleAutostart(e.target.checked)}
+                />{" "}
+                Bei der Anmeldung starten (im Infobereich, ohne Fenster)
+              </label>
+              <p className="muted small">
+                Wirkt sofort und ohne „Speichern“. So sind Tastenkürzel und Fokus-Timer immer bereit. Ein erneuter Start holt das
+                laufende Fenster nach vorn.
+              </p>
+              {autostartError && <div className="error">{autostartError}</div>}
               <h3>Fenster</h3>
               <label className="toggle">
                 <input

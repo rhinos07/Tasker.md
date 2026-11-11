@@ -1,6 +1,7 @@
 //! Tauri-Backend: stellt den Vault-Index als Befehle für die Oberfläche bereit.
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
+mod autostart;
 mod calendar;
 mod filters;
 mod focus;
@@ -395,6 +396,9 @@ fn demo_available() -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // zuerst: ein zweiter Start (z. B. über das Startmenü, während die App im Tray läuft)
+        // holt nur das vorhandene Fenster nach vorn
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -403,8 +407,14 @@ pub fn run() {
         .setup(|app| {
             hotkey::apply(app.handle());
             // Ohne Tray läuft die App trotzdem, nur ohne Timer im Infobereich
-            if let Err(e) = tray::setup(app.handle()) {
+            let tray = tray::setup(app.handle());
+            if let Err(e) = &tray {
                 eprintln!("Tray nicht verfügbar: {e}");
+            }
+            // Das Hauptfenster startet unsichtbar (tauri.conf.json); versteckt bleibt es nur
+            // beim Autostart und nur, wenn es einen Tray gibt, über den man es zurückholt
+            if !(tray.is_ok() && autostart::start_minimized(std::env::args())) {
+                tray::show_main(app.handle());
             }
             Ok(())
         })
@@ -457,7 +467,9 @@ pub fn run() {
             settings::save_settings,
             quick::quick_preview,
             quick::quick_add,
-            quick::quick_undo
+            quick::quick_undo,
+            autostart::autostart_status,
+            autostart::autostart_set
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

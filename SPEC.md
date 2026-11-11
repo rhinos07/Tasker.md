@@ -326,6 +326,15 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
 | `g h` · `g d` · `g p` · `g j` · `g n` | Heute · Dashboard · Projekte · Jira · Demnächst |
 | `?` | Übersicht der Tastenkürzel |
 
+**Infobereich und Autostart:**
+- **Schließen** minimiert in den Tray (`tray.closeToTray`, Standard an). Beenden geht über das Tray-Menü.
+- **Autostart** (Einstellungen → Bedienung, Standard aus):
+  - Startet die App bei der Anmeldung versteckt im Infobereich (Argument `--minimized`). Damit sind das globale Tastenkürzel und der Fokus-Timer immer bereit.
+  - Der Zustand liegt nur im Betriebssystem, nicht in der Konfiguration. Unter Windows ist das der Eintrag „Run“ des aktuellen Nutzers, nie maschinenweit. Unter macOS ist es ein LaunchAgent.
+  - Das Ausschalten entfernt den Eintrag vollständig. Eine Abschaltung im Task-Manager zeigt die Einstellung als „aus“.
+- **Nur eine Instanz:** Ein zweiter Start holt das laufende Fenster nach vorn.
+- Ohne Tray öffnet sich das Fenster immer.
+
 ## 7. Google Kalender (nur lesen)
 - OAuth 2.0 Desktop-Flow (Loopback-Redirect), Scope `calendar.readonly`
 - Client-ID und Secret stammen aus einem eigenen Google-Cloud-Projekt des Nutzers. Sie werden beim Einrichten eingetragen und nicht mit der App ausgeliefert. Die Anleitung steht in der README.
@@ -339,7 +348,7 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
   - Vault-Scan und Index, Parser
   - Datei-Watcher (`notify`), zeilengenaues Schreiben
   - HTTP-Clients für Jira und Google
-  - Schlüsselbund (`keyring`), globales Tastenkürzel (`tauri-plugin-global-shortcut`), Tray und Benachrichtigungen
+  - Schlüsselbund (`keyring`), globales Tastenkürzel (`tauri-plugin-global-shortcut`), Tray und Benachrichtigungen, Autostart (`auto-launch`), nur eine Instanz (`tauri-plugin-single-instance`)
 - **Frontend:** React, TypeScript und Vite, Drag & Drop für Zeitleiste und „Demnächst“
 - **Persistenz:**
   - JSON-Konfiguration im App-Datenordner

@@ -123,6 +123,40 @@ export interface JiraView {
   vaultOnly: VaultOnlyKey[];
 }
 
+export interface CalendarEvent {
+  title: string;
+  start: string | null;
+  end: string | null;
+  allDay: boolean;
+}
+
+export interface TimeBlock {
+  id: string;
+  date: string;
+  start: string;
+  minutes: number;
+  path: string;
+  description: string;
+}
+
+export interface BlockView {
+  block: TimeBlock;
+  task: TaskRef;
+}
+
+export interface TodayData {
+  source: "config" | "demo";
+  timeline: { start: string; end: string; defaultBlockMinutes: number };
+  events: CalendarEvent[];
+  calendarConnected: boolean;
+  today: string | null;
+  scheduled: TaskRef[];
+  due: TaskRef[];
+  important: TaskRef[];
+  blocks: BlockView[];
+  leftover: BlockView[];
+}
+
 export interface EditResult {
   path: string;
   line: number;

@@ -1,73 +1,21 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
+import TodayView from "./TodayView";
+import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
 type View = "today" | "dashboard" | "projects" | "jira" | "upcoming";
 type ScopeChoice = Scope | "all";
 
 const VIEWS: { id: View; label: string; ready: boolean }[] = [
-  { id: "today", label: "Heute", ready: false },
+  { id: "today", label: "Heute", ready: true },
   { id: "dashboard", label: "Dashboard", ready: true },
   { id: "projects", label: "Projekte", ready: true },
   { id: "jira", label: "Jira", ready: true },
   { id: "upcoming", label: "Demnächst", ready: false },
 ];
-
-const PRIO: Record<string, string> = { highest: "🔺", high: "⏫", medium: "🔼", low: "🔽", lowest: "⏬" };
-
-interface Actions {
-  readOnly: boolean;
-  today: string | null;
-  busy: boolean;
-  complete: (t: TaskRef) => void;
-  toggleToday: (t: TaskRef) => void;
-}
-const ActionsContext = createContext<Actions | null>(null);
-
-function TaskRow({ t }: { t: TaskRef }) {
-  const a = useContext(ActionsContext)!;
-  const k = t.task;
-  const plannedToday = k.scheduled !== null && k.scheduled === a.today;
-  const recurring = k.recurrence !== null;
-  const disabled = a.readOnly || a.busy;
-  const hint = a.readOnly ? "Demo-Vault ist schreibgeschützt" : undefined;
-  return (
-    <li className="task">
-      <button
-        className="check"
-        onClick={() => a.complete(t)}
-        disabled={disabled || recurring}
-        title={recurring ? "Wiederkehrende Aufgaben vorerst in Obsidian abhaken" : (hint ?? "Abhaken")}
-        aria-label={`Abhaken: ${k.description}`}
-      >
-        ☐
-      </button>
-      <span className="desc">{k.description}</span>
-      {PRIO[k.priority] && <span className="meta">{PRIO[k.priority]}</span>}
-      {k.due && <span className="meta due">📅 {k.due}</span>}
-      {k.scheduled && <span className={plannedToday ? "meta today" : "meta"}>⏳ {k.scheduled}</span>}
-      {k.recurrence && <span className="meta">🔁 {k.recurrence}</span>}
-      {k.tags.map((tag) => (
-        <span key={tag} className="tag">
-          {tag}
-        </span>
-      ))}
-      <button
-        className={plannedToday ? "plan active" : "plan"}
-        onClick={() => a.toggleToday(t)}
-        disabled={disabled}
-        title={hint ?? (plannedToday ? "⏳ heute entfernen" : "Für heute planen (⏳)")}
-      >
-        {plannedToday ? "⏳ heute ✕" : "⏳ heute"}
-      </button>
-      <span className="source" title={t.notePath}>
-        {t.noteName}
-      </span>
-    </li>
-  );
-}
 
 function Section({ title, tasks }: { title: string; tasks: TaskRef[] }) {
   return (
@@ -154,12 +102,13 @@ function Projects({ projects }: { projects: ProjectInfo[] }) {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setView] = useState<View>("today");
   const [scope, setScope] = useState<ScopeChoice>("all");
   const [demo, setDemo] = useState(false);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState(0);
   const [toast, setToast] = useState<{ text: string; undo?: EditResult } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -210,15 +159,18 @@ export default function App() {
   };
 
   // Jede Änderung: schreiben, Ergebnis melden, neu laden. Konflikte werden gemeldet, nie überschrieben.
-  const run = async (cmd: string, args: Record<string, unknown>, done: (r: EditResult) => string) => {
+  const run = async (cmd: string, args: Record<string, unknown>, done: (r: EditResult) => string): Promise<boolean> => {
     setBusy(true);
     try {
       const r = await invoke<EditResult>(cmd, { ...args, demo });
       showToast(done(r), cmd === "undo_edit" ? undefined : r);
+      return true;
     } catch (e) {
       showToast(String(e));
+      return false;
     } finally {
       setBusy(false);
+      setVersion((v) => v + 1);
       await load();
     }
   };
@@ -228,6 +180,9 @@ export default function App() {
     readOnly: data?.source === "demo",
     today: data?.index.today ?? null,
     busy,
+    version,
+    scheduleToday: (t) =>
+      run("schedule_task", { target: target(t), todayFlag: true }, () => `Für heute geplant: ${t.task.description}`),
     complete: (t) => void run("complete_task", { target: target(t) }, () => `Erledigt: ${t.task.description}`),
     toggleToday: (t) => {
       const isToday = t.task.scheduled !== null && t.task.scheduled === data?.index.today;
@@ -292,6 +247,7 @@ export default function App() {
         {data && view === "projects" && (
           <Projects projects={data.index.projects.filter((p) => scope === "all" || p.scope === scope)} />
         )}
+        {view === "today" && <TodayView scope={scope === "all" ? null : scope} demo={demo} />}
         {view === "jira" && <JiraView demo={demo} />}
         {data && data.index.warnings.length > 0 && (
           <details className="warnings">

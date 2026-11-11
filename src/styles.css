@@ -105,3 +105,28 @@ details.refs ul { font-size: 12px; margin: 4px 0 0 6px; }
 .setup input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; min-width: 260px; }
 .ok { color: #2f9e57; }
 code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius: 4px; }
+
+/* Heute & Zeitleiste */
+.today { display: grid; grid-template-columns: minmax(340px, 440px) 1fr; gap: 16px; align-items: start; }
+.today-lists { display: flex; flex-direction: column; gap: 16px; }
+.small { font-size: 12px; margin: 0 0 8px; }
+.task.draggable { cursor: grab; }
+.task.draggable:active { cursor: grabbing; }
+.timeline-wrap { --label: 44px; }
+.allday { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px var(--label); }
+.event-chip { font-size: 12px; background: var(--tag); border-radius: 4px; padding: 2px 8px; }
+.timeline { position: relative; margin-left: var(--label); border-left: 1px solid var(--border); }
+.hour { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+.hour span { position: absolute; left: calc(-1 * var(--label)); top: -7px; width: 38px; text-align: right; font-size: 11px; color: var(--muted); }
+.gap { position: absolute; left: 4px; right: 4px; border: 1px dashed rgba(47, 158, 87, .45); background: rgba(47, 158, 87, .06); border-radius: 6px; pointer-events: none; }
+.gap span { position: absolute; right: 6px; bottom: 2px; font-size: 11px; color: #2f9e57; }
+.event { position: absolute; left: 4px; width: calc(48% - 6px); background: var(--border); color: var(--text); border-radius: 6px; padding: 1px 6px; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.block { position: absolute; left: 48%; right: 4px; background: var(--tag); border: 1px solid var(--accent); border-left-width: 3px; border-radius: 6px; padding: 1px 4px 4px; font-size: 12px; overflow: hidden; cursor: grab; z-index: 2; }
+.block-head { display: flex; gap: 4px; align-items: center; }
+.block-title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+.block .close { border: none; padding: 0 4px; color: var(--muted); }
+.block-meta { color: var(--muted); font-size: 11px; padding-left: 20px; }
+.resize { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: ns-resize; }
+.drop-preview { position: absolute; left: 48%; right: 4px; border: 2px dashed var(--accent); border-radius: 6px; font-size: 11px; color: var(--accent); padding: 0 6px; pointer-events: none; z-index: 3; }
+.now { position: absolute; left: -4px; right: 0; border-top: 2px solid var(--alert); z-index: 4; pointer-events: none; }
+.now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--alert); }

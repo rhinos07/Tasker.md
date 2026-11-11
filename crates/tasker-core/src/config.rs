@@ -16,6 +16,22 @@ pub struct Config {
     pub contexts: Vec<String>,
     pub waiting_tag: String,
     pub jira: JiraConfig,
+    pub timeline: TimelineConfig,
+}
+
+/// Tages-Zeitleiste (SPEC 5.1). Zeiten als `HH:MM`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct TimelineConfig {
+    pub start: String,
+    pub end: String,
+    pub default_block_minutes: u32,
+}
+
+impl Default for TimelineConfig {
+    fn default() -> Self {
+        Self { start: "07:00".into(), end: "20:00".into(), default_block_minutes: 30 }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -206,6 +222,7 @@ impl Config {
                 .to_vec(),
             waiting_tag: "#warten".into(),
             jira: JiraConfig { project_keys: vec!["ABC".into()], ..JiraConfig::default() },
+            timeline: TimelineConfig::default(),
         }
     }
 }

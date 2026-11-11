@@ -6,6 +6,7 @@ pub mod edit;
 pub mod index;
 pub mod jira;
 pub mod task;
+pub mod today;
 pub mod vault;
 
 pub use config::Config;

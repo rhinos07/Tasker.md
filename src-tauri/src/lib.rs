@@ -2,6 +2,7 @@
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
 mod jira;
+mod today;
 mod watcher;
 
 use serde::{Deserialize, Serialize};
@@ -317,6 +318,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(watcher::WatchState::default())
+        .manage(today::BlockLock::default())
         .invoke_handler(tauri::generate_handler![
             get_overview,
             complete_task,
@@ -329,7 +331,10 @@ pub fn run() {
             jira_delete_token,
             jira_test,
             jira_issues,
-            jira_refresh
+            jira_refresh,
+            today::get_today,
+            today::save_block,
+            today::remove_block
         ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");

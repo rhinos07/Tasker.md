@@ -41,6 +41,21 @@ pub struct Note {
 }
 
 impl Note {
+    /// Liste aus dem Frontmatter: YAML-Liste, Einzelwert oder kommagetrennter Text.
+    pub fn fm_list(&self, key: &str) -> Vec<String> {
+        let one = |v: &Value| match v {
+            Value::String(s) => Some(s.clone()),
+            Value::Number(n) => Some(n.to_string()),
+            _ => None,
+        };
+        let raw: Vec<String> = match self.frontmatter.as_ref().and_then(|f| f.get(key)) {
+            Some(Value::Sequence(items)) => items.iter().filter_map(one).collect(),
+            Some(v) => one(v).map(|s| s.split(',').map(str::to_string).collect()).unwrap_or_default(),
+            None => vec![],
+        };
+        raw.into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    }
+
     pub fn fm_str(&self, key: &str) -> Option<String> {
         match self.frontmatter.as_ref()?.get(key)? {
             Value::String(s) => Some(s.trim().to_string()).filter(|s| !s.is_empty()),

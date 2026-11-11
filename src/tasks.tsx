@@ -78,9 +78,19 @@ export function TaskRow({ t, onDragStart }: { t: TaskRef; onDragStart?: (e: Reac
       {PRIO[k.priority] && <span className="meta">{PRIO[k.priority]}</span>}
       {k.due && <span className="meta due">📅 {k.due}</span>}
       {k.scheduled && <span className={plannedToday ? "meta today" : "meta"}>⏳ {k.scheduled}</span>}
+      {!k.scheduled && t.inferredScheduled && (
+        <span className="meta inherited" title="Datum der Tagesnotiz, steht nicht in der Zeile">
+          ⏳ {t.inferredScheduled}
+        </span>
+      )}
       {k.recurrence && <span className="meta">🔁 {k.recurrence}</span>}
       {k.tags.map((tag) => (
         <span key={tag} className="tag">
+          {tag}
+        </span>
+      ))}
+      {t.inheritedTags.map((tag) => (
+        <span key={tag} className="tag inherited" title="aus dem Frontmatter der Notiz, steht nicht in der Zeile">
           {tag}
         </span>
       ))}

@@ -97,6 +97,11 @@
     "minMinutes": 5,
     "markInProgress": false
   },
+  "inherit": {
+    "frontmatterTags": true,
+    "dailyNoteDate": true,
+    "dailyNoteFormats": ["%Y-%m-%d", "%Y%m%d"]
+  },
   "hotkeys": {
     "quickCapture": "CmdOrCtrl+Alt+Space"
   },

@@ -35,7 +35,7 @@ pub struct UpcomingView {
 
 /// Tag, an dem eine Aufgabe in „Demnächst“ steht: ⏳, sonst 📅.
 pub fn column_date(t: &TaskRef) -> Option<NaiveDate> {
-    t.task.scheduled.or(t.task.due)
+    t.scheduled().or(t.task.due)
 }
 
 pub fn upcoming_view(
@@ -45,12 +45,13 @@ pub fn upcoming_view(
     today: NaiveDate,
     days: usize,
 ) -> UpcomingView {
+    // Tagesnotizen nur mit Datum (eigenem oder dem der Notiz), nie unter „Ohne Datum“
     let journal = format!("{}/", cfg.folders.journal);
     let open: Vec<&TaskRef> = index
         .tasks
         .iter()
         .filter(|t| !t.task.done)
-        .filter(|t| !t.note_path.starts_with(&journal))
+        .filter(|t| !t.note_path.starts_with(&journal) || column_date(t).is_some())
         .filter(|t| scope.is_none_or(|s| t.scope == s))
         .collect();
     let last = today + Duration::days(days.saturating_sub(1) as i64);
@@ -73,7 +74,7 @@ pub fn upcoming_view(
                     overdue: d < today,
                 });
             }
-            None if !t.blocked && !t.task.has_tag(&cfg.waiting_tag) => {
+            None if !t.blocked && !t.has_tag(&cfg.waiting_tag) => {
                 v.unscheduled.push((*t).clone())
             }
             None => {}

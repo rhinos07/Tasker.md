@@ -33,6 +33,10 @@ export interface TaskRef {
   scope: Scope;
   blocked: boolean;
   task: Task;
+  /** Tags aus dem Frontmatter der Notiz (nur Anzeige, nicht in der Zeile) */
+  inheritedTags: string[];
+  /** Datum der Tagesnotiz, wenn die Aufgabe selbst kein Datum hat (nur Anzeige) */
+  inferredScheduled: string | null;
 }
 
 export interface ProjectInfo {

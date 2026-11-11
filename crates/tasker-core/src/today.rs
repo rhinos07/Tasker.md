@@ -64,7 +64,7 @@ pub fn parse_hm(s: &str) -> Option<NaiveTime> {
 }
 
 fn on_today(t: &TaskRef, today: NaiveDate) -> bool {
-    !t.task.done && t.task.scheduled.is_some_and(|d| d <= today)
+    !t.task.done && t.scheduled().is_some_and(|d| d <= today)
 }
 
 fn find_task<'a>(index: &'a Index, b: &TimeBlock) -> Option<&'a TaskRef> {
@@ -112,7 +112,7 @@ pub fn today_view(index: &Index, _cfg: &Config, scope: Option<Scope>, today: Nai
         .filter(|t| !blocked_keys.contains(&(t.note_path.as_str(), t.task.description.as_str())))
         .map(|t| (*t).clone())
         .collect();
-    scheduled.sort_by_key(|t| (t.task.priority, t.task.scheduled));
+    scheduled.sort_by_key(|t| (t.task.priority, t.scheduled()));
     let mut due: Vec<TaskRef> = open
         .iter()
         .filter(|t| t.task.due.is_some_and(|d| d <= today) && !on_today(t, today))

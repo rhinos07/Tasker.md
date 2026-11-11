@@ -7,6 +7,7 @@ review: 2026-11-08
 termin: 2026-12-15
 tags:
   - projekt
+  - garten
 ---
 # Gartenhaus
 

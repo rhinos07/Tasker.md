@@ -36,6 +36,7 @@ interface Config {
   hotkeys: { quickCapture: string };
   obsidian: { useAdvancedUri: string };
   tray: { closeToTray: boolean };
+  inherit: { frontmatterTags: boolean; dailyNoteDate: boolean; dailyNoteFormats: string[] };
 }
 
 interface SettingsData {
@@ -158,6 +159,7 @@ export default function Settings({
       waitingTag: c.waitingTag,
       timeline: c.timeline,
       focus: c.focus,
+      inherit: c.inherit,
       jira: {
         baseUrl: c.jira.baseUrl.trim(),
         jql: c.jira.jql,
@@ -266,6 +268,16 @@ export default function Settings({
                   <input type="number" min={1} value={c.projects.reviewAfterDays} onChange={(e) => set("projects", { reviewAfterDays: num(e.target.value) })} />
                 </Field>
               </div>
+              <h3>Nur für die Anzeige ableiten</h3>
+              <p className="muted small">Davon wird nichts in die Notizen geschrieben. Abgeleitetes erscheint blasser.</p>
+              <label className="check-row">
+                <input type="checkbox" checked={c.inherit.frontmatterTags} onChange={(e) => set("inherit", { frontmatterTags: e.target.checked })} /> Aufgaben
+                erben die Tags aus dem Frontmatter ihrer Notiz (auch für Filter, Kontexte und Warten)
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={c.inherit.dailyNoteDate} onChange={(e) => set("inherit", { dailyNoteDate: e.target.checked })} /> Aufgaben
+                ohne Datum in einer Tagesnotiz gelten als am Tag der Notiz geplant (erscheinen auf Heute und in Demnächst)
+              </label>
             </>
           )}
           {tab === "focus" && (

@@ -69,7 +69,10 @@ Einstufung: **MVP** = erste Version · **P2** = Phase 2 · **–** = nicht gepla
 ### 3.1 Vault-Scan
 - Gescannt wird der Vault-Ordner aus `vault.path`, alle `*.md`-Dateien.
 - **Ausschlüsse** sind konfigurierbar (`scan.exclude`, Glob-Muster). Standard: Vorlagen, Archiv, Wissensordner, `.obsidian/`, `.claude/` sowie beliebige weitere Muster (z. B. kopierte Fremd-Dokumentation).
-- Die Tagesnotizen (`folders.journal`) fließen nur in die Ansicht „Heute“ ein, nicht ins Dashboard.
+- Die Tagesnotizen (`folders.journal`) fließen nur in „Heute“ und „Demnächst“ ein, nicht ins Dashboard.
+- **Nur für die Anzeige abgeleitet** (`inherit`, beides abschaltbar, nichts davon wird in die Dateien geschrieben; die Oberfläche zeigt es blasser):
+  - **Tags aus dem Frontmatter:** Aufgaben übernehmen die Tags aus dem Feld `tags` ihrer Notiz (Liste, Einzelwert oder kommagetrennt, `#` wird ergänzt). Sie zählen für Filter (`tag:`, `kontext:`), die Gruppierung nach Kontext und `#warten`.
+  - **Datum aus der Tagesnotiz:** Eine Aufgabe ohne 📅, ⏳ und 🛫 in einer Tagesnotiz gilt als am Tag der Notiz geplant. Das Datum kommt aus dem Dateinamen (`dailyNoteFormats`, Standard `%Y-%m-%d` und `%Y%m%d`). Ein eigenes Datum in der Zeile hat Vorrang; Ziehen auf einen Tag in „Demnächst“ setzt ein echtes ⏳.
 - Dateinamen und Pfade werden **NFC-normalisiert**, weil macOS Umlaute zerlegt (NFD) speichern kann.
 - Ein Datei-Watcher aktualisiert den Index live.
 

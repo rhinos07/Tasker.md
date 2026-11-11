@@ -75,6 +75,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .meta { font-size: 12px; color: var(--muted); }
 .due { color: var(--alert); }
 .tag { font-size: 11px; background: var(--tag); border-radius: 4px; padding: 1px 6px; }
+.tag.inherited, .meta.inherited { opacity: 0.55; font-style: italic; }
 .source { font-size: 11px; color: var(--muted); margin-left: auto; }
 
 table { width: 100%; border-collapse: collapse; }

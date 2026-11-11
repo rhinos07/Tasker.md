@@ -338,8 +338,8 @@ fn eval(e: &Expr, t: &TaskRef, c: &Ctx) -> bool {
         Expr::Term(term) => {
             let k = &t.task;
             match term {
-                Term::Context(v) => k.contexts().any(|x| x.trim_start_matches("#@").to_lowercase() == *v),
-                Term::Tag(v) => k.tags.iter().any(|x| x.trim_start_matches('#').to_lowercase() == *v),
+                Term::Context(v) => t.contexts().any(|x| x.trim_start_matches("#@").to_lowercase() == *v),
+                Term::Tag(v) => t.all_tags().any(|x| x.trim_start_matches('#').to_lowercase() == *v),
                 Term::Area(v) => {
                     t.area.as_deref().is_some_and(|a| a.to_lowercase() == *v)
                         || (matches!(v.as_str(), "arbeit" | "work") && t.scope == Scope::Work)
@@ -355,10 +355,10 @@ fn eval(e: &Expr, t: &TaskRef, c: &Ctx) -> bool {
                     PrioCond::None => !k.priority.is_set(),
                 },
                 Term::Due(d) => date_ok(k.due, d, c.today),
-                Term::Scheduled(d) => date_ok(k.scheduled, d, c.today),
+                Term::Scheduled(d) => date_ok(t.scheduled(), d, c.today),
                 Term::Blocked => t.blocked,
                 Term::InProgress => k.in_progress,
-                Term::Waiting => k.has_tag(&c.cfg.waiting_tag),
+                Term::Waiting => t.has_tag(&c.cfg.waiting_tag),
                 Term::Jira(None) => c.index.jira_mentions.values().flatten().any(|n| n.path == t.note_path),
                 Term::Jira(Some(key)) => {
                     k.raw.to_uppercase().contains(key.as_str())

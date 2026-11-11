@@ -26,6 +26,65 @@ pub struct TaskRef {
     pub scope: Scope,
     pub blocked: bool,
     pub task: Task,
+    /// Tags aus dem Frontmatter der Notiz, die die Aufgabe nicht selbst trägt (nur Anzeige)
+    pub inherited_tags: Vec<String>,
+    /// Datum der Tagesnotiz, wenn die Aufgabe selbst kein 📅/⏳/🛫 hat (nur Anzeige)
+    pub inferred_scheduled: Option<NaiveDate>,
+}
+
+impl TaskRef {
+    /// Eigene und geerbte Tags.
+    pub fn all_tags(&self) -> impl Iterator<Item = &str> {
+        self.task.tags.iter().chain(&self.inherited_tags).map(String::as_str)
+    }
+    pub fn has_tag(&self, tag: &str) -> bool {
+        self.all_tags().any(|t| t.eq_ignore_ascii_case(tag))
+    }
+    /// Kontexte: eigene zuerst, dann geerbte.
+    pub fn contexts(&self) -> impl Iterator<Item = &str> {
+        self.all_tags().filter(|t| t.starts_with("#@"))
+    }
+    /// ⏳ der Aufgabe, sonst das Datum ihrer Tagesnotiz.
+    pub fn scheduled(&self) -> Option<NaiveDate> {
+        self.task.scheduled.or(self.inferred_scheduled)
+    }
+}
+
+/// Frontmatter-Tags als `#tag`, ohne die, die die Aufgabe schon trägt (Groß-/Kleinschreibung egal).
+fn inherited(fm_tags: &[String], own: &[String]) -> Vec<String> {
+    let mut seen: HashSet<String> = own.iter().map(|t| t.to_lowercase()).collect();
+    fm_tags
+        .iter()
+        .map(|t| if t.starts_with('#') { t.clone() } else { format!("#{t}") })
+        .filter(|t| t.len() > 1 && !t.contains(char::is_whitespace))
+        .filter(|t| seen.insert(t.to_lowercase()))
+        .collect()
+}
+
+/// Datum aus dem Dateinamen einer Tagesnotiz.
+fn daily_note_date(cfg: &Config, name: &str) -> Option<NaiveDate> {
+    cfg.inherit.daily_note_formats.iter().find_map(|f| NaiveDate::parse_from_str(name, f).ok())
+}
+
+#[cfg(test)]
+mod inherit_tests {
+    use super::*;
+
+    #[test]
+    fn inherited_tags_are_normalized_and_deduplicated() {
+        let fm = ["projekt", "#Garten", "@haus", "zwei worte", "garten"].map(String::from);
+        let own = ["#garten".to_string()];
+        assert_eq!(inherited(&fm, &own), vec!["#projekt", "#@haus"]);
+    }
+
+    #[test]
+    fn daily_note_formats() {
+        let cfg = Config::default();
+        let d = NaiveDate::from_ymd_opt(2026, 11, 11);
+        assert_eq!(daily_note_date(&cfg, "2026-11-11"), d);
+        assert_eq!(daily_note_date(&cfg, "20261111"), d);
+        assert_eq!(daily_note_date(&cfg, "Notizen"), None);
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -130,6 +189,10 @@ impl Index {
                 _ => None,
             };
             let scope = scope_of(cfg, &n.path, area.as_deref());
+            let fm_tags = if cfg.inherit.frontmatter_tags { n.fm_list("tags") } else { vec![] };
+            let note_date = (cfg.inherit.daily_note_date && n.kind == NoteKind::Journal)
+                .then(|| daily_note_date(cfg, &n.name))
+                .flatten();
             for t in &n.tasks {
                 for dep in &t.depends_on {
                     if !all_ids.contains(dep.as_str()) {
@@ -144,6 +207,8 @@ impl Index {
                     area: area.clone(),
                     scope,
                     blocked,
+                    inherited_tags: inherited(&fm_tags, &t.tags),
+                    inferred_scheduled: note_date.filter(|_| t.due.is_none() && t.scheduled.is_none() && t.start.is_none()),
                     task: t.clone(),
                 });
             }
@@ -215,7 +280,7 @@ impl Index {
             .filter(|t| !t.note_path.starts_with(&journal))
             .filter(|t| scope.is_none_or(|s| t.scope == s))
             .collect();
-        let waiting = |t: &TaskRef| t.task.has_tag(&cfg.waiting_tag);
+        let waiting = |t: &TaskRef| t.has_tag(&cfg.waiting_tag);
         let week_end = today + Duration::days(7);
 
         let mut d = Dashboard {
@@ -241,7 +306,7 @@ impl Index {
             } else if waiting(t) {
                 d.waiting.entry(t.note_name.clone()).or_default().push((*t).clone());
             } else if t.task.due.is_none() && !t.task.priority.is_set() && !t.task.in_progress {
-                let ctx = t.task.contexts().next().unwrap_or("(ohne Kontext)").to_string();
+                let ctx = t.contexts().next().unwrap_or("(ohne Kontext)").to_string();
                 d.next_actions.entry(ctx).or_default().push((*t).clone());
             }
         }

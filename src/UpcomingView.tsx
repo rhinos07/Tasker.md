@@ -134,7 +134,11 @@ export default function UpcomingView({ scope, demo }: { scope: Scope | null; dem
       end();
       if (!d || d.from === key) return;
       if (key === NONE && !d.t.task.scheduled) {
-        a.notify("Diese Aufgabe hat nur ein 📅. Fälligkeiten ändert die App nicht per Drag & Drop.");
+        a.notify(
+          d.t.inferredScheduled
+            ? "Das Datum stammt aus der Tagesnotiz und steht nicht in der Zeile. Auf einen Tag ziehen setzt ein eigenes ⏳."
+            : "Diese Aufgabe hat nur ein 📅. Fälligkeiten ändert die App nicht per Drag & Drop.",
+        );
         return;
       }
       void a.scheduleOn(d.t, key === NONE ? null : key);
@@ -143,7 +147,7 @@ export default function UpcomingView({ scope, demo }: { scope: Scope | null; dem
 
   const q = filter.trim().toLowerCase();
   const unscheduled = q
-    ? data.unscheduled.filter((t) => `${t.task.description} ${t.noteName} ${t.task.tags.join(" ")}`.toLowerCase().includes(q))
+    ? data.unscheduled.filter((t) => `${t.task.description} ${t.noteName} ${t.task.tags.join(" ")} ${t.inheritedTags.join(" ")}`.toLowerCase().includes(q))
     : data.unscheduled;
 
   return (

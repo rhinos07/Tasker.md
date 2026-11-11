@@ -24,6 +24,29 @@ pub struct Config {
     pub hotkeys: HotkeysConfig,
     pub obsidian: ObsidianConfig,
     pub tray: TrayConfig,
+    pub inherit: InheritConfig,
+}
+
+/// Nur für die Anzeige abgeleitete Werte; in die Dateien wird davon nichts geschrieben.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct InheritConfig {
+    /// Aufgaben übernehmen die Tags aus dem Frontmatter (`tags`) ihrer Notiz
+    pub frontmatter_tags: bool,
+    /// Aufgaben ohne 📅/⏳/🛫 in einer Tagesnotiz gelten als am Tag der Notiz geplant
+    pub daily_note_date: bool,
+    /// Datumsformate der Tagesnotiz-Dateinamen (chrono), z. B. `%Y-%m-%d`
+    pub daily_note_formats: Vec<String>,
+}
+
+impl Default for InheritConfig {
+    fn default() -> Self {
+        Self {
+            frontmatter_tags: true,
+            daily_note_date: true,
+            daily_note_formats: vec!["%Y-%m-%d".into(), "%Y%m%d".into()],
+        }
+    }
 }
 
 /// Symbol im Infobereich
@@ -364,6 +387,7 @@ impl Config {
             hotkeys: HotkeysConfig::default(),
             obsidian: ObsidianConfig::default(),
             tray: TrayConfig::default(),
+            inherit: InheritConfig::default(),
             filters: vec![
                 crate::filter::SavedFilter { name: "Telefonate".into(), query: "kontext:@telefon & !warten".into() },
                 crate::filter::SavedFilter {

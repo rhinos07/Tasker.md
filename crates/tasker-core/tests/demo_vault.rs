@@ -31,7 +31,44 @@ fn excluded_folders_and_empty_checkboxes_are_ignored() {
     let paths: Vec<&str> = notes.iter().map(|n| n.path.as_str()).collect();
     assert!(paths.iter().all(|p| !p.starts_with("40 Archiv") && !p.starts_with("30 Wissen") && !p.starts_with("Vorlagen")));
     let journal = notes.iter().find(|n| n.path == "Journal/2026-11-11.md").unwrap();
-    assert_eq!(journal.tasks.len(), 1, "leere Checkbox wird ignoriert");
+    assert_eq!(journal.tasks.len(), 2, "leere Checkbox wird ignoriert");
+}
+
+/// Geerbte Tags aus dem Frontmatter und Datum aus der Tagesnotiz: nur Anzeige, Filter und Ansichten.
+#[test]
+fn inherited_tags_and_daily_note_date() {
+    let c = cfg();
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let find = |d: &str| idx.tasks.iter().find(|t| t.task.description == d).unwrap();
+
+    let roof = find("Dachfläche ausmessen");
+    assert_eq!(roof.inherited_tags, vec!["#projekt", "#garten"]);
+    assert_eq!(roof.task.tags, vec!["#@haus"], "die Zeile selbst bleibt unverändert");
+    let f = tasker_core::filter::Filter::parse("tag:garten & kontext:@haus").unwrap();
+    let hits = tasker_core::filter::apply(&f, &idx, &c, None, today());
+    assert!(hits.iter().all(|t| t.note_name == "Gartenhaus") && !hits.is_empty());
+
+    // ohne eigenes Datum: Datum der Tagesnotiz; mit eigenem ⏳: keins abgeleitet
+    let quick = find("Schnell notiert im Journal");
+    assert_eq!(quick.inferred_scheduled, Some(today()));
+    assert_eq!(quick.task.scheduled, None);
+    assert_eq!(find("Termin beim Optiker vereinbaren").inferred_scheduled, None);
+    let view = tasker_core::today::today_view(&idx, &c, None, today(), &[]);
+    assert!(descs(&view.scheduled).contains(&"Schnell notiert im Journal"));
+    let d = idx.dashboard(&c, None, today());
+    assert!(d.next_actions.values().flatten().all(|t| !t.note_path.starts_with("Journal/")), "Dashboard ohne Tagesnotizen");
+    let up = tasker_core::upcoming::upcoming_view(&idx, &c, None, today(), 14);
+    let day = |i: usize| up.days[i].tasks.iter().map(|u| u.task.task.description.as_str()).collect::<Vec<_>>();
+    assert!(day(0).contains(&"Schnell notiert im Journal"), "abgeleitetes Datum: heute");
+    assert!(day(1).contains(&"Termin beim Optiker vereinbaren"), "eigenes ⏳ aus der Tagesnotiz");
+    assert!(up.unscheduled.iter().all(|t| !t.note_path.starts_with("Journal/")));
+
+    // abschaltbar
+    let mut off = cfg();
+    off.inherit.frontmatter_tags = false;
+    off.inherit.daily_note_date = false;
+    let idx = tasker_core::load_index(&off, today()).unwrap();
+    assert!(idx.tasks.iter().all(|t| t.inherited_tags.is_empty() && t.inferred_scheduled.is_none()));
 }
 
 #[test]

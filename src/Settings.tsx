@@ -42,7 +42,7 @@ interface SettingsData {
   config: Config;
 }
 
-type Tab = "vault" | "gtd" | "focus" | "jira" | "calendar" | "keys";
+export type Tab = "vault" | "gtd" | "focus" | "jira" | "calendar" | "keys";
 const TABS: { id: Tab; label: string }[] = [
   { id: "vault", label: "Vault" },
   { id: "gtd", label: "GTD" },
@@ -69,12 +69,20 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export default function Settings({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+export default function Settings({
+  onClose,
+  onSaved,
+  initialTab = "vault",
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+  initialTab?: Tab;
+}) {
   const [data, setData] = useState<SettingsData | null>(null);
   const [c, setC] = useState<Config | null>(null);
   // Listen als Text, damit beim Tippen keine Zeilen verschwinden
   const [lists, setLists] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState<Tab>("vault");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

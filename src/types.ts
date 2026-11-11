@@ -71,6 +71,8 @@ export interface Index {
 export interface Overview {
   vaultName: string;
   source: "config" | "demo";
+  /** false = keine Arbeitsbereiche eingetragen, alles zählt als privat */
+  workConfigured: boolean;
   index: Index;
   dashboard: Dashboard;
 }

@@ -5,7 +5,7 @@ import JiraView from "./JiraView";
 import TodayView from "./TodayView";
 import UpcomingView from "./UpcomingView";
 import FilterView, { type SavedFilter } from "./FilterView";
-import Settings from "./Settings";
+import Settings, { type Tab as SettingsTab } from "./Settings";
 import QuickEntry, { type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
@@ -119,7 +119,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState<false | SettingsTab>(false);
   const [configVersion, setConfigVersion] = useState(0);
   const [filters, setFilters] = useState<SavedFilter[]>([]);
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function App() {
 
   // Erster Start ohne Konfiguration: Einrichtung öffnen
   useEffect(() => {
-    void invoke<{ exists: boolean }>("get_settings").then((d) => !d.exists && setShowSettings(true), () => undefined);
+    void invoke<{ exists: boolean }>("get_settings").then((d) => !d.exists && setShowSettings("vault"), () => undefined);
   }, []);
   const [toast, setToast] = useState<{
     text: string;
@@ -486,7 +486,7 @@ export default function App() {
             + Aufgabe
           </button>
           <button onClick={() => void load()}>Aktualisieren</button>
-          <button onClick={() => setShowSettings(true)}>⚙ Einstellungen</button>
+          <button onClick={() => setShowSettings("vault")}>⚙ Einstellungen</button>
         </div>
       </aside>
       <main>
@@ -502,6 +502,15 @@ export default function App() {
         </header>
         <FocusBar f={focus} />
         {error && <div className="error">{error}</div>}
+        {data && !data.workConfigured && scope !== "all" && (
+          <div className="hint">
+            <span>
+              Keine Arbeitsbereiche eingetragen: Alle Aufgaben zählen als <b>Privat</b>, unter „Arbeit“ bleibt die
+              Liste leer.
+            </span>
+            <button onClick={() => setShowSettings("gtd")}>Bereiche eintragen …</button>
+          </div>
+        )}
         {d && view === "dashboard" && (
           <div className="grid">
             <Section title="🔼 Wichtig" tasks={d.important} />
@@ -556,6 +565,7 @@ export default function App() {
       )}
       {showSettings && (
         <Settings
+          initialTab={showSettings}
           onClose={() => setShowSettings(false)}
           onSaved={() => {
             void invoke<{ active: boolean; error: string | null }>("hotkey_apply").then((s) => s.error && showToast(s.error));

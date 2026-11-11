@@ -27,6 +27,8 @@ use tauri::{Manager, State};
 struct Overview {
     vault_name: String,
     source: &'static str,
+    /// false = weder Arbeitsbereiche noch Arbeitspfade eingetragen, alles zählt als privat
+    work_configured: bool,
     index: Index,
     dashboard: Dashboard,
 }
@@ -67,7 +69,8 @@ fn get_overview(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool>
         _ => None,
     };
     let dashboard = index.dashboard(&cfg, scope, today);
-    Ok(Overview { vault_name: cfg.vault.name.clone(), source, index: (*index).clone(), dashboard })
+    let work_configured = !cfg.areas.work.is_empty() || !cfg.areas.work_paths.is_empty();
+    Ok(Overview { vault_name: cfg.vault.name.clone(), source, work_configured, index: (*index).clone(), dashboard })
 }
 
 /// Eine Aufgabenzeile, wie die Oberfläche sie aus dem Index kennt.

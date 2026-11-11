@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "check:private": "node scripts/check-private.mjs"
+    "check:private": "node scripts/check-private.mjs",
+    "version:set": "node scripts/version.mjs set"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

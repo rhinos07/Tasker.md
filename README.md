@@ -35,6 +35,23 @@ Ohne eigene Konfiguration zeigt die App in Debug-Builds den erfundenen [Demo-Vau
 | `src` | Oberfläche (React, TypeScript, Vite) |
 | `examples/demo-vault` | erfundener Vault für Tests und Screenshots |
 
+## Installation und Releases
+
+Fertige Installer liegen unter [Releases](../../releases): `.msi` oder `.exe` für Windows, `.dmg` für macOS (Apple Silicon und Intel). Sie sind nicht signiert:
+
+- **Windows:** SmartScreen warnt beim ersten Start → „Weitere Informationen“ → „Trotzdem ausführen“.
+- **macOS:** Nach dem Kopieren nach „Programme“ einmal `xattr -cr /Applications/Tasker.md.app` im Terminal ausführen.
+
+Ein neues Release entsteht so:
+
+```bash
+npm run version:set -- 0.2.0     # setzt die Version in package.json, Cargo.toml und tauri.conf.json
+git commit -am "Version 0.2.0"
+git tag v0.2.0 && git push && git push --tags
+```
+
+Der Workflow `Release` baut daraufhin die Installer und legt einen **Release-Entwurf** an. Veröffentlicht wird erst, wenn man den Entwurf auf GitHub freigibt. Passt der Tag nicht zur Version, bricht der Workflow ab.
+
 ## Konfiguration
 
 Die Konfiguration liegt **nicht** im Repo, sondern im App-Datenordner:

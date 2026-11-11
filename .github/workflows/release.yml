@@ -1,0 +1,77 @@
+name: Release
+
+# Ein Tag wie v0.2.0 baut die Installer für Windows und macOS und legt sie als Release-Entwurf an.
+# Veröffentlicht wird erst, wenn der Entwurf auf GitHub von Hand freigegeben wird.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Versionsnummern passen zum Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node scripts/version.mjs check "${GITHUB_REF_NAME}"
+      - name: Eigener Datenschutz-Check
+        run: node scripts/check-private.mjs --all
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ""
+          - os: macos-latest
+            args: "--target universal-apple-darwin"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: "Tasker.md __VERSION__"
+          releaseBody: |
+            Installer für Windows (.msi oder .exe) und macOS (.dmg, Apple Silicon und Intel).
+
+            Die Installer sind nicht signiert:
+            - **Windows:** SmartScreen warnt beim ersten Start → „Weitere Informationen“ → „Trotzdem ausführen“.
+            - **macOS:** Nach dem Kopieren nach „Programme“ einmal im Terminal `xattr -cr /Applications/Tasker.md.app` ausführen, sonst meldet macOS die App als beschädigt.
+
+            Einrichtung: siehe README.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+      # Manuell gestartet (ohne Tag): Installer nur als Artefakt des Laufs ablegen
+      - uses: actions/upload-artifact@v4
+        if: github.ref_type != 'tag'
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*.exe
+            target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: warn

@@ -45,3 +45,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  # App-Schicht (Tauri) inkl. Clippy; unter Windows ohne zusätzliche Systempakete
+  app:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      - run: npm run build
+      - name: Versionsnummern einheitlich
+        run: node scripts/version.mjs
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace

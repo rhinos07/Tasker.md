@@ -1,6 +1,8 @@
 //! Tauri-Backend: stellt den Vault-Index als Befehle für die Oberfläche bereit.
 //! Die Konfiguration liegt im App-Datenordner (SPEC 9), nie im Repo.
 
+mod calendar;
+mod google;
 mod jira;
 mod today;
 mod watcher;
@@ -118,6 +120,24 @@ fn watch_vault(app: tauri::AppHandle, state: State<'_, watcher::WatchState>, dem
     watcher::watch(&app, &state, &cfg)
 }
 
+/// Setzt einen einzelnen Wert in `config.json` und lässt alles andere unverändert (Reihenfolge bleibt).
+fn set_config_value(app: &tauri::AppHandle, path: &[&str], value: serde_json::Value) -> Result<(), String> {
+    let file = config_path(app).filter(|p| p.is_file()).ok_or("Keine Konfigurationsdatei gefunden.")?;
+    let text = std::fs::read_to_string(&file).map_err(|_| "Konfiguration nicht lesbar.".to_string())?;
+    let mut v: serde_json::Value =
+        serde_json::from_str(&text).map_err(|_| "Konfiguration ist kein gültiges JSON.".to_string())?;
+    let (last, parents) = path.split_last().ok_or("Leerer Schlüssel.")?;
+    let mut cur = &mut v;
+    for k in parents {
+        let obj = cur.as_object_mut().ok_or("Konfiguration hat eine unerwartete Struktur.")?;
+        cur = obj.entry(*k).or_insert_with(|| serde_json::json!({}));
+    }
+    cur.as_object_mut().ok_or("Konfiguration hat eine unerwartete Struktur.")?.insert((*last).into(), value);
+    let out = serde_json::to_string_pretty(&v).map_err(|_| "Konfiguration nicht schreibbar.".to_string())? + "
+";
+    tasker_core::edit::write_atomic(&file, &out).map_err(|_| "Konfiguration nicht schreibbar.".into())
+}
+
 // --- Jira (SPEC 4) ---
 
 fn cache_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -181,15 +201,7 @@ fn jira_save_credentials(app: tauri::AppHandle, email: String, token: Option<Str
     if !email.contains('@') {
         return Err("Bitte eine gültige E-Mail-Adresse eingeben.".into());
     }
-    let path = config_path(&app).filter(|p| p.is_file()).ok_or("Keine Konfigurationsdatei gefunden.")?;
-    let text = std::fs::read_to_string(&path).map_err(|_| "Konfiguration nicht lesbar.".to_string())?;
-    let mut v: serde_json::Value =
-        serde_json::from_str(&text).map_err(|_| "Konfiguration ist kein gültiges JSON.".to_string())?;
-    let root = v.as_object_mut().ok_or("Konfiguration ist kein JSON-Objekt.")?;
-    let jira = root.entry("jira").or_insert_with(|| serde_json::json!({}));
-    jira.as_object_mut().ok_or("Feld jira ist kein Objekt.")?.insert("email".into(), email.into());
-    let out = serde_json::to_string_pretty(&v).map_err(|_| "Konfiguration nicht schreibbar.".to_string())? + "\n";
-    tasker_core::edit::write_atomic(&path, &out).map_err(|_| "Konfiguration nicht schreibbar.".to_string())?;
+    set_config_value(&app, &["jira", "email"], email.into())?;
     if let Some(t) = token.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()) {
         jira::store_token(&t)?;
     }
@@ -334,7 +346,14 @@ pub fn run() {
             jira_refresh,
             today::get_today,
             today::save_block,
-            today::remove_block
+            today::remove_block,
+            calendar::calendar_status,
+            calendar::calendar_save_client,
+            calendar::calendar_connect,
+            calendar::calendar_disconnect,
+            calendar::calendar_list,
+            calendar::calendar_select,
+            calendar::calendar_refresh
         ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");

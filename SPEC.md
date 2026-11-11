@@ -372,7 +372,7 @@ Die Schlüssel stehen in `config.example.json`:
 | `jira.source`, `jira.tokenType` | Zugangsweg (`api-token`; P2: `cache-file`, OAuth) und Token-Typ (`scoped` / `classic`) |
 | `jira.worklog.roundToMinutes`, `jira.worklog.enabled` (P2) | Tageszusammenfassung und Buchen |
 | `obsidian.useAdvancedUri` | Zeilensprung über das Plugin Advanced URI (`auto` / `never`) |
-| `calendar.google.calendarIds` | angezeigte Kalender |
+| `calendar.google.calendarIds`, `calendar.refreshMinutes`, `calendar.daysAhead` | angezeigte Kalender, Aktualisierung, Zeitraum (Standard 14 Tage) |
 | `timeline.start`, `timeline.end`, `timeline.defaultBlockMinutes` | Zeitleiste |
 | `focus.enabled`, `focus.pomodoro.work`, `focus.pomodoro.break` | Fokus-Timer |
 | `focus.writeToVault`, `focus.logSection`, `focus.logFormat`, `focus.minMinutes` | Fokus-Zeiten im Vault-Log |

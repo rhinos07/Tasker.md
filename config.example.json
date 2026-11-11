@@ -76,7 +76,9 @@
       "calendarIds": [
         "primary"
       ]
-    }
+    },
+    "refreshMinutes": 15,
+    "daysAhead": 14
   },
   "timeline": {
     "start": "07:00",

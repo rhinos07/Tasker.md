@@ -81,7 +81,11 @@ pub fn get_today(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool
     let (cfg, source, index) = load(&app, demo.unwrap_or(false))?;
     let blocks = read_blocks(&blocks_path(&app, source == "demo")?);
     let view = today_view(&index, &cfg, parse_scope(scope.as_deref()), today(), &blocks);
-    let (events, calendar_connected) = if source == "demo" { (demo_events(), true) } else { (vec![], false) };
+    let (events, calendar_connected) = if source == "demo" {
+        (demo_events(), true)
+    } else {
+        (crate::calendar::events_on(&app, today()), crate::google::has_refresh_token())
+    };
     Ok(TodayData { source, timeline: cfg.timeline.clone(), events, calendar_connected, view })
 }
 

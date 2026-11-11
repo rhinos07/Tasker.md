@@ -17,6 +17,35 @@ pub struct Config {
     pub waiting_tag: String,
     pub jira: JiraConfig,
     pub timeline: TimelineConfig,
+    pub calendar: CalendarConfig,
+}
+
+/// Kalender (SPEC 7), nur lesen.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CalendarConfig {
+    pub google: GoogleCalendarConfig,
+    pub refresh_minutes: u32,
+    /// Wie viele Tage ab heute geladen werden
+    pub days_ahead: u32,
+}
+
+impl Default for CalendarConfig {
+    fn default() -> Self {
+        Self { google: GoogleCalendarConfig::default(), refresh_minutes: 15, days_ahead: 14 }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct GoogleCalendarConfig {
+    pub calendar_ids: Vec<String>,
+}
+
+impl Default for GoogleCalendarConfig {
+    fn default() -> Self {
+        Self { calendar_ids: vec!["primary".into()] }
+    }
 }
 
 /// Tages-Zeitleiste (SPEC 5.1). Zeiten als `HH:MM`.
@@ -223,6 +252,7 @@ impl Config {
             waiting_tag: "#warten".into(),
             jira: JiraConfig { project_keys: vec!["ABC".into()], ..JiraConfig::default() },
             timeline: TimelineConfig::default(),
+            calendar: CalendarConfig::default(),
         }
     }
 }

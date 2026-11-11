@@ -5,6 +5,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import CalendarSetup, { type CalendarStatus } from "./CalendarSetup";
 import { ActionsContext, TaskRow } from "./tasks";
 import type { BlockView, CalendarEvent, Scope, TaskRef, TimeBlock, TodayData } from "./types";
 
@@ -234,6 +235,9 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   const [data, setData] = useState<TodayData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const dragRef = useRef<Drag | null>(null);
+  const [cal, setCal] = useState<CalendarStatus | null>(null);
+  const [showCal, setShowCal] = useState(false);
+  const [calBusy, setCalBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -247,6 +251,37 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
   useEffect(() => {
     void load();
   }, [load, a.version]);
+
+  // Kalender: Status holen, bei veraltetem Cache neu laden (nicht im Demo-Vault)
+  const syncCalendar = useCallback(
+    async (force: boolean) => {
+      if (demo) return;
+      try {
+        const st = await invoke<CalendarStatus>("calendar_status");
+        setCal(st);
+        const stale =
+          !st.fetchedAt || Date.now() - new Date(st.fetchedAt).getTime() > Math.max(st.refreshMinutes, 1) * 60000;
+        if (st.connected && (force || stale)) {
+          setCalBusy(true);
+          await invoke("calendar_refresh");
+          setCal(await invoke<CalendarStatus>("calendar_status"));
+          await load();
+        }
+      } catch (e) {
+        setError(String(e));
+        setCal(await invoke<CalendarStatus>("calendar_status").catch(() => null));
+      } finally {
+        setCalBusy(false);
+      }
+    },
+    [demo, load],
+  );
+
+  useEffect(() => {
+    void syncCalendar(false);
+    const id = window.setInterval(() => void syncCalendar(false), 5 * 60000);
+    return () => window.clearInterval(id);
+  }, [syncCalendar]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -341,8 +376,31 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
           <h2>
             Zeitleiste <span className="count">{data.today}</span>
           </h2>
-          {!data.calendarConnected && (
-            <p className="muted small">Kalender noch nicht verbunden, es werden nur deine Zeitblöcke angezeigt.</p>
+          {!demo && cal && (
+            <div className="cal-bar small">
+              {cal.connected ? (
+                <span className="muted">
+                  Google Kalender · Stand {cal.fetchedAt ? new Date(cal.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"}
+                </span>
+              ) : (
+                <span className="muted">Kalender nicht verbunden, es werden nur deine Zeitblöcke angezeigt.</span>
+              )}
+              {cal.connected && (
+                <button onClick={() => void syncCalendar(true)} disabled={calBusy} title="Termine neu laden">
+                  {calBusy ? "…" : "↻"}
+                </button>
+              )}
+              <button onClick={() => setShowCal((x) => !x)}>{cal.connected ? "Kalender …" : "Verbinden …"}</button>
+            </div>
+          )}
+          {!demo && cal && showCal && (
+            <CalendarSetup
+              status={cal}
+              onChanged={() => {
+                void invoke<CalendarStatus>("calendar_status").then(setCal);
+                void load();
+              }}
+            />
           )}
           <Timeline data={data} dragRef={dragRef} onDropAt={(m) => void onDropAt(m)} onResize={(b, minutes) => void save({ ...b, minutes })} onRemove={(b) => void remove(b)} />
         </section>

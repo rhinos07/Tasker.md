@@ -3,7 +3,7 @@
 Desktop-Dashboard (Windows, macOS) für einen Obsidian-Vault nach **GTD**, mit Jira- und Kalender-Einblendung.
 Der Vault bleibt die einzige Quelle der Wahrheit. Tasker.md ist nur eine Oberfläche darüber.
 
-> Status: frühes Gerüst. Der Vault-Index und die Dashboard-Ansichten laufen. Jira, Kalender und die Schreibaktionen folgen.
+> Status: in Arbeit. Es laufen: Heute mit Zeitleiste, Dashboard, Projekte, Jira (nur lesen), Google Kalender (nur lesen), Abhaken und „⏳ heute“. Es folgen: Fokus-Timer, Schnelleingabe, Demnächst, Filter, Tastatur.
 > Die vollständige Spezifikation steht in [SPEC.md](SPEC.md).
 
 ## Funktionen (Ziel der ersten Version)
@@ -43,6 +43,26 @@ Die Konfiguration liegt **nicht** im Repo, sondern im App-Datenordner:
 - macOS: `~/Library/Application Support/md.tasker.app/config.json`
 
 Als Vorlage dient [config.example.json](config.example.json). Zugangsdaten wie der Jira-Token kommen nur in den Schlüsselbund des Betriebssystems.
+
+### Jira
+
+In der App unter **Jira** E-Mail und [API-Token](https://id.atlassian.com/manage-profile/security/api-tokens) eintragen. Bei einem Token mit Bereichen genügen `read:jira-work` und `read:jira-user`. Die Site-Adresse steht in `jira.baseUrl`.
+
+### Google Kalender
+
+Tasker.md liefert keine eigenen Google-Zugangsdaten mit. Jeder Nutzer legt einmalig ein eigenes Google-Cloud-Projekt an:
+
+1. In der [Google Cloud Console](https://console.cloud.google.com/) ein neues Projekt anlegen.
+2. Unter „APIs & Dienste → Bibliothek“ die **Google Calendar API** aktivieren.
+3. Unter „APIs & Dienste → OAuth-Zustimmungsbildschirm“ (bzw. „Google Auth Platform“) die App einrichten: Typ **Extern**, App-Name frei wählbar, eigene E-Mail als Support- und Entwickler-Kontakt. Unter „Datenzugriff“ den Bereich `.../auth/calendar.readonly` hinzufügen.
+4. Unter „Zielgruppe“ das eigene Google-Konto als **Testnutzer** eintragen.
+5. Unter „Clients“ (bzw. „Anmeldedaten“) einen **OAuth-Client vom Typ „Desktop-App“** erstellen und Client-ID sowie Client-Secret kopieren.
+6. In Tasker.md unter **Heute → Verbinden …** Client-ID und -Secret eintragen, **Mit Google verbinden** klicken und im Browser den Lesezugriff erlauben. Danach die angezeigten Kalender auswählen.
+
+Hinweise:
+
+- Im Status „Testen“ läuft die Verbindung nach **7 Tagen** ab, danach einfach neu verbinden. Wer das vermeiden will, stellt die App im Zustimmungsbildschirm auf „In Produktion“. Für die eigene Nutzung ist keine Prüfung durch Google nötig; Google zeigt dann beim Verbinden einen Hinweis „App nicht überprüft“, den man über „Erweitert“ bestätigt.
+- Tasker.md fordert nur Lesezugriff an und ändert keine Termine. Client-Daten und Token liegen im Schlüsselbund des Betriebssystems, die Termine der nächsten 14 Tage im Cache-Ordner der App.
 
 ## Datenschutz
 

@@ -130,3 +130,15 @@ code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius:
 .drop-preview { position: absolute; left: 48%; right: 4px; border: 2px dashed var(--accent); border-radius: 6px; font-size: 11px; color: var(--accent); padding: 0 6px; pointer-events: none; z-index: 3; }
 .now { position: absolute; left: -4px; right: 0; border-top: 2px solid var(--alert); z-index: 4; pointer-events: none; }
 .now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--alert); }
+
+/* Kalender */
+.cal-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cal-bar span { margin-right: auto; }
+.cal-bar button { font-size: 12px; padding: 2px 8px; white-space: nowrap; }
+.calendar-setup { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+.calendar-setup form { display: flex; flex-direction: column; gap: 8px; }
+.calendar-setup label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.calendar-setup .choices label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+.calendar-setup input:not([type="checkbox"]) { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+.calendar-setup .row { display: flex; gap: 8px; margin-top: 8px; }
+.choices { margin-bottom: 4px; }

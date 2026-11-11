@@ -1,0 +1,8 @@
+#!/bin/sh
+# Datenschutz-Check vor jedem Commit (SPEC 9). Aktivieren mit: git config core.hooksPath .githooks
+node scripts/check-private.mjs || exit 1
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --config .gitleaks.toml || exit 1
+else
+  echo "Hinweis: gitleaks nicht installiert, nur der eigene Check lief."
+fi

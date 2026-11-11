@@ -1,0 +1,20 @@
+[package]
+name = "tasker-md"
+description = "Tasker.md Desktop-App"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tasker_md_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tasker-core = { path = "../crates/tasker-core" }
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

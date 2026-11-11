@@ -1,0 +1,28 @@
+# Private, nie versionieren
+local/
+*.local.json
+.env
+.env.*
+!.env.example
+
+# Build & Abhängigkeiten
+node_modules/
+dist/
+target/
+src-tauri/target/
+src-tauri/gen/
+
+# Logs & Caches
+*.log
+.cache/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp

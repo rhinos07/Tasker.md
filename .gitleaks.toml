@@ -1,0 +1,18 @@
+# gitleaks-Regeln für Tasker.md: Standardregeln plus Muster für private Daten (SPEC 9)
+[extend]
+useDefault = true
+
+[[rules]]
+id = "windows-user-path"
+description = "Windows-Benutzerpfad"
+regex = '''(?i)[A-Za-z]:[\\/]+Users[\\/]+[^\\/\s"'<>]+'''
+
+[[rules]]
+id = "atlassian-site"
+description = "Konkrete Atlassian-Domain"
+regex = '''\b[a-z0-9-]+\.atlassian\.net\b'''
+[rules.allowlist]
+regexes = ['''\b(id|api|developer|support|community|marketplace|mcp)\.atlassian\.net\b''']
+
+[allowlist]
+paths = ['''^local/''', '''package-lock\.json''']

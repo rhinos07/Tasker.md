@@ -1,0 +1,109 @@
+{
+  "vault": {
+    "path": "<vault-pfad>",
+    "name": "<vault-name>"
+  },
+  "folders": {
+    "inbox": "00 Inbox",
+    "projects": "10 Projekte",
+    "areas": "20 Bereiche",
+    "knowledge": "30 Wissen",
+    "archive": "40 Archiv",
+    "journal": "Journal",
+    "templates": "Vorlagen"
+  },
+  "scan": {
+    "exclude": [
+      "Vorlagen/**",
+      "40 Archiv/**",
+      "30 Wissen/**",
+      ".obsidian/**",
+      ".claude/**"
+    ]
+  },
+  "sections": {
+    "projectTasks": "## Nächste Schritte",
+    "areaTasks": "## Aufgaben ohne Projekt"
+  },
+  "frontmatter": {
+    "type": "typ",
+    "projectType": "projekt",
+    "areaType": "bereich",
+    "status": "status",
+    "area": "bereich",
+    "review": "review",
+    "deadline": "termin",
+    "jira": "jira"
+  },
+  "projects": {
+    "reviewAfterDays": 14
+  },
+  "areas": {
+    "work": [
+      "Arbeit"
+    ],
+    "workPaths": [
+      "10 Projekte/Arbeit/",
+      "20 Bereiche/Arbeit/"
+    ]
+  },
+  "contexts": [
+    "#@computer",
+    "#@telefon",
+    "#@haus",
+    "#@unterwegs",
+    "#@büro"
+  ],
+  "waitingTag": "#warten",
+  "jira": {
+    "source": "api-token",
+    "tokenType": "scoped",
+    "baseUrl": "https://<firma>.atlassian.net",
+    "email": "<deine-jira-email>",
+    "jql": "assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC, updated DESC",
+    "savedQueries": [],
+    "projectKeys": [
+      "ABC"
+    ],
+    "refreshMinutes": 15,
+    "worklog": {
+      "roundToMinutes": 15,
+      "enabled": false
+    }
+  },
+  "calendar": {
+    "google": {
+      "calendarIds": [
+        "primary"
+      ]
+    }
+  },
+  "timeline": {
+    "start": "07:00",
+    "end": "20:00",
+    "defaultBlockMinutes": 30
+  },
+  "focus": {
+    "enabled": true,
+    "pomodoro": {
+      "work": 25,
+      "break": 5
+    },
+    "writeToVault": true,
+    "logSection": "## Log",
+    "logFormat": "- {date} ⏱ {minutes} min ({sessions}) · {task}",
+    "minMinutes": 5
+  },
+  "hotkeys": {
+    "quickCapture": "CmdOrCtrl+Alt+Space"
+  },
+  "filters": [
+    {
+      "name": "Anrufe Arbeit",
+      "query": "kontext:@telefon & bereich:arbeit & !blockiert"
+    }
+  ],
+  "obsidian": {
+    "useAdvancedUri": "auto"
+  }
+}

@@ -14,7 +14,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tasker-core = { path = "../crates/tasker-core" }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

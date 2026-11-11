@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import type { TaskRef } from "./types";
 
@@ -156,6 +157,24 @@ export function useFocus(
     }
   }, [now, state, finish]);
 
+  // Stand im Tray (Tooltip, Menü, auf dem Mac Zeit in der Menüleiste)
+  useEffect(() => {
+    const payload = state
+      ? (() => {
+          const ms = elapsed(state, now);
+          const shown =
+            state.mode === "pomodoro" ? (state.phase === "work" ? state.workMin : state.breakMin) * 60000 - ms : ms;
+          return {
+            time: clock(shown),
+            label: state.phase === "break" ? "Pause" : state.task.task.description,
+            running: !!state.runningSince,
+            phase: state.phase,
+          };
+        })()
+      : null;
+    void invoke("focus_tray", { focus: payload }).catch(() => undefined);
+  }, [state, now]);
+
   // Restzeit im Fenstertitel
   useEffect(() => {
     let w: ReturnType<typeof getCurrentWindow>;
@@ -193,7 +212,7 @@ export function useFocus(
     });
   };
 
-  return {
+  const api: FocusApi = {
     settings,
     state,
     now,
@@ -207,6 +226,33 @@ export function useFocus(
     skipBreak: () => setState(null),
     toStopwatch: () => state && setState({ ...state, mode: "stopwatch" }),
   };
+
+  // Klicks im Tray-Menü: Pause/Weiter und Stopp bzw. Pause beenden
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void listen<string>("tray-focus", (e) => {
+      const f = apiRef.current;
+      if (!f.state) return;
+      if (e.payload === "toggle") {
+        if (f.state.runningSince) f.pause();
+        else f.resume();
+      } else if (e.payload === "stop") {
+        if (f.state.phase === "work") f.stop();
+        else f.skipBreak();
+      }
+    })
+      .then((u) => (cancelled ? u() : (unlisten = u)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  return api;
 }
 
 /** Leiste oben im Hauptbereich, solange ein Timer läuft. */

@@ -11,6 +11,7 @@ mod jira;
 mod quick;
 mod settings;
 mod today;
+mod tray;
 mod upcoming;
 mod watcher;
 
@@ -388,6 +389,10 @@ pub fn run() {
         .manage(hotkey::HotkeyState::default())
         .setup(|app| {
             hotkey::apply(app.handle());
+            // Ohne Tray läuft die App trotzdem, nur ohne Timer im Infobereich
+            if let Err(e) = tray::setup(app.handle()) {
+                eprintln!("Tray nicht verfügbar: {e}");
+            }
             Ok(())
         })
         .manage(watcher::WatchState::default())
@@ -428,6 +433,7 @@ pub fn run() {
             calendar::calendar_select,
             calendar::calendar_refresh,
             focus::focus_settings,
+            tray::focus_tray,
             focus::focus_finish,
             focus::focus_undo_log,
             focus::focus_day,

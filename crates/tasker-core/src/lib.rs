@@ -11,6 +11,7 @@ pub mod jira;
 pub mod quick;
 pub mod task;
 pub mod today;
+pub mod upcoming;
 pub mod vault;
 
 pub use config::Config;

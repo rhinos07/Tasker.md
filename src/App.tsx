@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
 import TodayView from "./TodayView";
+import UpcomingView from "./UpcomingView";
 import Settings from "./Settings";
 import QuickEntry, { type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
@@ -17,7 +18,7 @@ const VIEWS: { id: View; label: string; ready: boolean }[] = [
   { id: "dashboard", label: "Dashboard", ready: true },
   { id: "projects", label: "Projekte", ready: true },
   { id: "jira", label: "Jira", ready: true },
-  { id: "upcoming", label: "Demnächst", ready: false },
+  { id: "upcoming", label: "Demnächst", ready: true },
 ];
 
 function Section({ title, tasks }: { title: string; tasks: TaskRef[] }) {
@@ -288,6 +289,11 @@ export default function App() {
     startFocus: focus.start,
     scheduleToday: (t) =>
       run("schedule_task", { target: target(t), todayFlag: true }, () => `Für heute geplant: ${t.task.description}`),
+    scheduleOn: (t, date) =>
+      run("schedule_on", { target: target(t), date }, () =>
+        date ? `⏳ ${date.split("-").reverse().slice(0, 2).join(".")}.: ${t.task.description}` : `⏳ entfernt: ${t.task.description}`,
+      ),
+    notify: (text) => showToast(text),
     complete: (t) => void run("complete_task", { target: target(t) }, () => `Erledigt: ${t.task.description}`),
     toggleToday: (t) => {
       const isToday = t.task.scheduled !== null && t.task.scheduled === data?.index.today;
@@ -357,6 +363,7 @@ export default function App() {
         {data && view === "projects" && (
           <Projects projects={data.index.projects.filter((p) => scope === "all" || p.scope === scope)} />
         )}
+        {view === "upcoming" && <UpcomingView scope={scope === "all" ? null : scope} demo={demo} />}
         {view === "today" && <TodayView scope={scope === "all" ? null : scope} demo={demo} />}
         {view === "jira" && <JiraView key={configVersion} demo={demo} />}
         {data && data.index.warnings.length > 0 && (

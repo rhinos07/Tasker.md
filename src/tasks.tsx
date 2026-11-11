@@ -13,6 +13,10 @@ export interface Actions {
   toggleToday: (t: TaskRef) => void;
   /** setzt ⏳ auf heute und wartet auf das Ergebnis (für die Zeitleiste) */
   scheduleToday: (t: TaskRef) => Promise<boolean>;
+  /** setzt ⏳ auf ein Datum (`YYYY-MM-DD`) oder entfernt es (`null`); 📅 bleibt unverändert */
+  scheduleOn: (t: TaskRef, date: string | null) => Promise<boolean>;
+  /** kurze Meldung unten einblenden */
+  notify: (text: string) => void;
   /** zählt jede Änderung am Vault hoch, damit Ansichten neu laden */
   version: number;
   focusEnabled: boolean;

@@ -207,3 +207,40 @@ fn focus_log_acceptance() {
     assert_eq!(after.lines().count(), before.lines().count() + 1, "genau eine Zeile dazu");
     std::fs::remove_dir_all(&c.vault.path).unwrap();
 }
+
+/// SPEC 5.5 und Kriterium 8: Spalten nach ⏳/📅; Ziehen auf übermorgen ändert nur das ⏳-Datum.
+#[test]
+fn upcoming_columns_and_drag_to_day_after_tomorrow() {
+    use tasker_core::edit::{edit_line, LineEdit};
+    use tasker_core::upcoming::upcoming_view;
+    let c = cfg();
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let v = upcoming_view(&idx, &c, None, today(), 14);
+    assert_eq!(v.days.len(), 14);
+    let col = |i: usize| v.days[i].tasks.iter().map(|u| u.task.task.description.as_str()).collect::<Vec<_>>();
+    assert!(col(0).contains(&"Wasser im Garten abstellen"), "⏳ heute");
+    assert!(col(0).contains(&"Testbericht abgeben"), "📅 überfällig steht unter heute");
+    assert!(v.days[0].tasks.iter().any(|u| u.overdue && u.task.task.description == "Testbericht abgeben"));
+    assert!(col(1).contains(&"Mit Teamleitung über Weiterbildung sprechen"));
+    assert!(col(2).contains(&"Bauantrag prüfen"), "📅 ohne ⏳");
+    assert!(v.unscheduled.iter().all(|t| t.task.scheduled.is_none() && t.task.due.is_none() && !t.blocked));
+    assert!(v.unscheduled.iter().any(|t| t.task.description == "Dachfläche ausmessen"));
+    let work = upcoming_view(&idx, &c, Some(Scope::Work), today(), 14);
+    assert!(work.days.iter().flat_map(|d| &d.tasks).all(|u| u.task.scope == Scope::Work));
+
+    // Ziehen auf übermorgen
+    let c = temp_vault("upcoming");
+    let rel = "10 Projekte/Gartenhaus/Gartenhaus.md";
+    let file = c.vault.path.join(rel);
+    let before = std::fs::read_to_string(&file).unwrap();
+    let idx = tasker_core::load_index(&c, today()).unwrap();
+    let t = idx.tasks.iter().find(|t| t.task.description == "Bauantrag prüfen").unwrap();
+    let target = today() + chrono::Duration::days(2);
+    let r = edit_line(&c.vault.path, rel, t.task.line, &t.task.raw, &LineEdit::SetScheduled(Some(target)), today()).unwrap();
+    assert_eq!(r.new, "- [ ] Bauantrag prüfen #@computer 📅 2026-11-13 ⏳ 2026-11-13");
+    let after = std::fs::read_to_string(&file).unwrap();
+    let diff: Vec<_> = before.lines().zip(after.lines()).filter(|(a, b)| a != b).collect();
+    assert_eq!(diff.len(), 1, "genau eine Zeile geändert");
+    assert_eq!(before.lines().count(), after.lines().count());
+    std::fs::remove_dir_all(&c.vault.path).unwrap();
+}

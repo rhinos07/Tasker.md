@@ -166,3 +166,22 @@ export interface EditResult {
   old: string;
   new: string;
 }
+
+export interface UpcomingTask extends TaskRef {
+  overdue: boolean;
+}
+
+export interface UpcomingDay {
+  date: string;
+  tasks: UpcomingTask[];
+  events: CalendarEvent[];
+}
+
+export interface UpcomingData {
+  source: "config" | "demo";
+  today: string;
+  days: UpcomingDay[];
+  unscheduled: TaskRef[];
+  later: number;
+  calendarConnected: boolean;
+}

@@ -33,7 +33,7 @@ fn write_blocks(path: &Path, blocks: &[TimeBlock]) -> Result<(), String> {
     tasker_core::edit::write_atomic(path, &text).map_err(|_| "Zeitblöcke nicht schreibbar.".into())
 }
 
-fn parse_scope(scope: Option<&str>) -> Option<Scope> {
+pub(crate) fn parse_scope(scope: Option<&str>) -> Option<Scope> {
     match scope {
         Some("work") => Some(Scope::Work),
         Some("private") => Some(Scope::Private),
@@ -42,7 +42,7 @@ fn parse_scope(scope: Option<&str>) -> Option<Scope> {
 }
 
 /// Erfundene Termine für den Demo-Vault.
-fn demo_events() -> Vec<CalendarEvent> {
+pub(crate) fn demo_events() -> Vec<CalendarEvent> {
     let ev = |title: &str, start: &str, end: &str| CalendarEvent {
         title: title.into(),
         start: Some(start.into()),

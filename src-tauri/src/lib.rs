@@ -9,6 +9,7 @@ mod jira;
 mod quick;
 mod settings;
 mod today;
+mod upcoming;
 mod watcher;
 
 use serde::{Deserialize, Serialize};
@@ -70,7 +71,7 @@ fn get_overview(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool>
 /// Eine Aufgabenzeile, wie die Oberfläche sie aus dem Index kennt.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TaskTarget {
+pub(crate) struct TaskTarget {
     path: String,
     line: usize,
     raw: String,
@@ -342,6 +343,8 @@ pub fn run() {
         .manage(focus::FocusLock::default())
         .invoke_handler(tauri::generate_handler![
             get_overview,
+            upcoming::get_upcoming,
+            upcoming::schedule_on,
             complete_task,
             schedule_task,
             undo_edit,

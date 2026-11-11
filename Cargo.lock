@@ -4167,7 +4167,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tasker-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "globset",
@@ -4182,7 +4182,7 @@ dependencies = [
 
 [[package]]
 name = "tasker-md"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "auto-launch",
  "base64 0.23.1",

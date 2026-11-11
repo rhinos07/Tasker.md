@@ -1,5 +1,6 @@
-// Einrichtung von Google Kalender (SPEC 7): eigener OAuth-Client, Anmeldung im Browser, Kalenderauswahl.
-// Client-Secret und Tokens werden nie angezeigt; sie liegen im Schlüsselbund des Betriebssystems.
+// Einrichtung der Kalender (SPEC 7): Google (eigener OAuth-Client, Anmeldung im Browser, Kalenderauswahl)
+// und abonnierte ICS-Links, z. B. Outlook „Kalender veröffentlichen“.
+// Client-Secret, Tokens und ICS-Links werden nie angezeigt; sie liegen im Schlüsselbund des Betriebssystems.
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -8,6 +9,8 @@ export interface CalendarStatus {
   clientSet: boolean;
   connected: boolean;
   calendarIds: string[];
+  ics: { id: string; name: string }[];
+  active: boolean;
   refreshMinutes: number;
   fetchedAt: string | null;
 }
@@ -25,6 +28,8 @@ export default function CalendarSetup({ status, onChanged }: { status: CalendarS
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [choices, setChoices] = useState<Choice[] | null>(null);
+  const [icsName, setIcsName] = useState("");
+  const [icsUrl, setIcsUrl] = useState("");
 
   const act = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -76,8 +81,28 @@ export default function CalendarSetup({ status, onChanged }: { status: CalendarS
       onChanged();
     });
 
+  const addIcs = () =>
+    act(async () => {
+      setMsg({ ok: true, text: "Prüfe den Link …" });
+      await invoke("calendar_add_ics", { name: icsName, url: icsUrl });
+      setIcsName("");
+      setIcsUrl("");
+      const n = await invoke<number>("calendar_refresh");
+      setMsg({ ok: true, text: `Abonniert, ${n} Termine geladen.` });
+      onChanged();
+    });
+
+  const removeIcs = (id: string, name: string) => {
+    if (!window.confirm(`Kalender „${name}“ entfernen? Der Link wird aus dem Schlüsselbund gelöscht.`)) return;
+    void act(async () => {
+      await invoke("calendar_remove_ics", { id });
+      onChanged();
+    });
+  };
+
   return (
     <div className="calendar-setup">
+      <h4>Google Kalender</h4>
       {!status.clientSet && (
         <>
           <p className="muted small">
@@ -146,6 +171,48 @@ export default function CalendarSetup({ status, onChanged }: { status: CalendarS
           </div>
         </>
       )}
+      <h4>Kalender per Link (ICS)</h4>
+      <p className="muted small">
+        Zum Beispiel den Firmenkalender aus Outlook: Outlook im Web → Einstellungen → Kalender → Freigegebene Kalender →
+        Kalender veröffentlichen, dort den ICS-Link kopieren. Der Link wird nur im Schlüsselbund gespeichert.
+      </p>
+      {status.ics.length > 0 && (
+        <ul className="choices">
+          {status.ics.map((f) => (
+            <li key={f.id}>
+              {f.name}{" "}
+              <button className="link" onClick={() => removeIcs(f.id, f.name)} disabled={busy}>
+                entfernen
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void addIcs();
+        }}
+      >
+        <label>
+          Name
+          <input value={icsName} onChange={(e) => setIcsName(e.target.value)} placeholder="z. B. Firma" autoComplete="off" required />
+        </label>
+        <label>
+          ICS-Link
+          <input
+            type="password"
+            value={icsUrl}
+            onChange={(e) => setIcsUrl(e.target.value)}
+            placeholder="https://…/calendar.ics"
+            autoComplete="off"
+            required
+          />
+        </label>
+        <button type="submit" disabled={busy}>
+          {busy ? "Prüfe …" : "Abonnieren"}
+        </button>
+      </form>
       {msg && <p className={msg.ok ? "ok small" : "error"}>{msg.text}</p>}
     </div>
   );

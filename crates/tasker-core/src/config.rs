@@ -113,6 +113,9 @@ impl Default for ObsidianConfig {
 #[serde(default, rename_all = "camelCase")]
 pub struct CalendarConfig {
     pub google: GoogleCalendarConfig,
+    /// Abonnierte ICS-Links (z. B. Outlook „Kalender veröffentlichen“). Der Link selbst ist
+    /// geheim und liegt im Schlüsselbund; hier stehen nur Id und Name.
+    pub ics: Vec<IcsFeed>,
     pub refresh_minutes: u32,
     /// Wie viele Tage ab heute geladen werden
     pub days_ahead: u32,
@@ -120,8 +123,15 @@ pub struct CalendarConfig {
 
 impl Default for CalendarConfig {
     fn default() -> Self {
-        Self { google: GoogleCalendarConfig::default(), refresh_minutes: 15, days_ahead: 14 }
+        Self { google: GoogleCalendarConfig::default(), ics: vec![], refresh_minutes: 15, days_ahead: 14 }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct IcsFeed {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -89,7 +89,7 @@ pub fn get_today(app: tauri::AppHandle, scope: Option<String>, demo: Option<bool
     let (events, calendar_connected) = if source == "demo" {
         (demo_events(), true)
     } else {
-        (crate::calendar::events_on(&app, today()), crate::google::has_refresh_token())
+        (crate::calendar::events_on(&app, today()), crate::google::has_refresh_token() || !cfg.calendar.ics.is_empty())
     };
     Ok(TodayData { source, timeline: cfg.timeline.clone(), events, calendar_connected, view })
 }

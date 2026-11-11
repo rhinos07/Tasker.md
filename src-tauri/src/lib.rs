@@ -7,6 +7,7 @@ mod filters;
 mod focus;
 mod google;
 mod hotkey;
+mod ics;
 mod index_cache;
 mod jira;
 mod quick;
@@ -458,6 +459,8 @@ pub fn run() {
             calendar::calendar_list,
             calendar::calendar_select,
             calendar::calendar_refresh,
+            calendar::calendar_add_ics,
+            calendar::calendar_remove_ics,
             focus::focus_settings,
             tray::focus_tray,
             focus::focus_finish,

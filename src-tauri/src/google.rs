@@ -7,7 +7,7 @@
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, TimeZone};
+use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -34,15 +34,15 @@ fn entry(user: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(KEYRING_SERVICE, user).map_err(|_| "Schlüsselbund nicht verfügbar.".into())
 }
 
-fn get_secret(user: &str) -> Option<String> {
+pub(crate) fn get_secret(user: &str) -> Option<String> {
     entry(user).ok()?.get_password().ok().filter(|s| !s.is_empty())
 }
 
-fn set_secret(user: &str, value: &str) -> Result<(), String> {
+pub(crate) fn set_secret(user: &str, value: &str) -> Result<(), String> {
     entry(user)?.set_password(value).map_err(|_| "Konnte nicht im Schlüsselbund speichern.".into())
 }
 
-fn delete_secret(user: &str) -> Result<(), String> {
+pub(crate) fn delete_secret(user: &str) -> Result<(), String> {
     match entry(user)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(_) => Err("Eintrag im Schlüsselbund konnte nicht gelöscht werden.".into()),
@@ -89,7 +89,7 @@ fn status_message(code: reqwest::StatusCode) -> String {
     }
 }
 
-fn http() -> Result<reqwest::Client, String> {
+pub(crate) fn http() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .user_agent("Tasker.md")
@@ -328,6 +328,32 @@ pub struct DayEvent {
     pub date: NaiveDate,
     #[serde(flatten)]
     pub event: CalendarEvent,
+    /// Herkunft: `google` oder `ics:<id>`. Damit bleiben bei einem Fehler die alten Termine dieser Quelle erhalten.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source: String,
+}
+
+/// Ganztägiger Termin von `start` bis `end` (exklusiv), auf die Tage in `from..=to` verteilt.
+pub(crate) fn push_all_day(out: &mut Vec<DayEvent>, title: &str, start: NaiveDate, end: NaiveDate, from: NaiveDate, to: NaiveDate) {
+    let mut d = start.max(from);
+    while d < end.max(start + ChronoDuration::days(1)) && d <= to {
+        out.push(DayEvent { date: d, event: CalendarEvent { title: title.to_string(), start: None, end: None, all_day: true }, source: String::new() });
+        d += ChronoDuration::days(1);
+    }
+}
+
+/// Termin mit Uhrzeit (Ortszeit), auf die Tage in `from..=to` verteilt.
+pub(crate) fn push_timed(out: &mut Vec<DayEvent>, title: &str, s: NaiveDateTime, e: NaiveDateTime, from: NaiveDate, to: NaiveDate) {
+    let (sd, ed) = (s.date(), e.date());
+    // endet genau um Mitternacht → zählt nicht zum Folgetag
+    let last = if ed > sd && e.time() == NaiveTime::MIN { ed - ChronoDuration::days(1) } else { ed };
+    let mut d = sd.max(from);
+    while d <= last && d <= to {
+        let start = if d == sd { s.format("%H:%M").to_string() } else { "00:00".into() };
+        let end = if d == ed { e.format("%H:%M").to_string() } else { "23:59".into() };
+        out.push(DayEvent { date: d, event: CalendarEvent { title: title.to_string(), start: Some(start), end: Some(end), all_day: false }, source: String::new() });
+        d += ChronoDuration::days(1);
+    }
 }
 
 /// Liest eine Seite von `events.list` und rechnet in die Zeitzone `tz` um.
@@ -344,32 +370,14 @@ where
         if declined {
             continue;
         }
-        let title = item["summary"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("(ohne Titel)").to_string();
-        let in_range = |d: NaiveDate| d >= from && d <= to;
+        let title = item["summary"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("(ohne Titel)");
         let date = |k: &str| item[k]["date"].as_str().and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
-        let dt = |k: &str| item[k]["dateTime"].as_str().and_then(|s| DateTime::parse_from_rfc3339(s).ok()).map(|d| d.with_timezone(tz));
+        let dt = |k: &str| item[k]["dateTime"].as_str().and_then(|s| DateTime::parse_from_rfc3339(s).ok()).map(|d| d.with_timezone(tz).naive_local());
         if let (Some(s), Some(e)) = (date("start"), date("end")) {
             // ganztägig, Ende exklusiv
-            let mut d = s;
-            while d < e.max(s + ChronoDuration::days(1)) {
-                if in_range(d) {
-                    out.push(DayEvent { date: d, event: CalendarEvent { title: title.clone(), start: None, end: None, all_day: true } });
-                }
-                d += ChronoDuration::days(1);
-            }
+            push_all_day(&mut out, title, s, e, from, to);
         } else if let (Some(s), Some(e)) = (dt("start"), dt("end")) {
-            let (sd, ed) = (s.date_naive(), e.date_naive());
-            // endet genau um Mitternacht → zählt nicht zum Folgetag
-            let last = if ed > sd && e.format("%H:%M").to_string() == "00:00" { ed - ChronoDuration::days(1) } else { ed };
-            let mut d = sd;
-            while d <= last {
-                if in_range(d) {
-                    let start = if d == sd { s.format("%H:%M").to_string() } else { "00:00".into() };
-                    let end = if d == ed { e.format("%H:%M").to_string() } else { "23:59".into() };
-                    out.push(DayEvent { date: d, event: CalendarEvent { title: title.clone(), start: Some(start), end: Some(end), all_day: false } });
-                }
-                d += ChronoDuration::days(1);
-            }
+            push_timed(&mut out, title, s, e, from, to);
         }
     }
     out

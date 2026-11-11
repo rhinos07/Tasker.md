@@ -81,6 +81,16 @@ Hinweise:
 - Im Status „Testen“ läuft die Verbindung nach **7 Tagen** ab, danach einfach neu verbinden. Wer das vermeiden will, stellt die App im Zustimmungsbildschirm auf „In Produktion“. Für die eigene Nutzung ist keine Prüfung durch Google nötig; Google zeigt dann beim Verbinden einen Hinweis „App nicht überprüft“, den man über „Erweitert“ bestätigt.
 - Tasker.md fordert nur Lesezugriff an und ändert keine Termine. Client-Daten und Token liegen im Schlüsselbund des Betriebssystems, die Termine der nächsten 14 Tage im Cache-Ordner der App.
 
+### Kalender per ICS-Link (z. B. Outlook, Firmenkalender)
+
+Ohne API-Key und ohne Admin-Rechte, sofern das Veröffentlichen von Kalendern erlaubt ist:
+
+1. In Outlook im Web unter **Einstellungen → Kalender → Freigegebene Kalender → Kalender veröffentlichen** den Kalender und den Umfang („Alle Details“ oder „Nur Verfügbarkeit“) wählen und **Veröffentlichen** klicken.
+2. Den **ICS-Link** kopieren (nicht den HTML-Link).
+3. In Tasker.md unter **Heute → Verbinden …** bzw. **Kalender …** im Abschnitt „Kalender per Link (ICS)“ einen Namen und den Link eintragen und **Abonnieren** klicken.
+
+Der Link wirkt wie ein Passwort: Wer ihn kennt, sieht den Kalender. Tasker.md speichert ihn nur im Schlüsselbund. Serientermine, Ausnahmen und Zeitzonen (auch Windows-Zonennamen) werden umgerechnet. Funktioniert genauso mit anderen ICS-Links, z. B. aus Nextcloud oder iCloud.
+
 ## Datenschutz
 
 Das Repo enthält keine persönlichen Daten. Vor jedem Commit prüft ein Hook auf Benutzerpfade, konkrete Atlassian-Domains, E-Mail-Adressen und eigene private Begriffe:

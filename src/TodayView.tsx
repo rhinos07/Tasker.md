@@ -289,7 +289,7 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
         setCal(st);
         const stale =
           !st.fetchedAt || Date.now() - new Date(st.fetchedAt).getTime() > Math.max(st.refreshMinutes, 1) * 60000;
-        if (st.connected && (force || stale)) {
+        if (st.active && (force || stale)) {
           setCalBusy(true);
           await invoke("calendar_refresh");
           setCal(await invoke<CalendarStatus>("calendar_status"));
@@ -412,19 +412,19 @@ export default function TodayView({ scope, demo }: { scope: Scope | null; demo: 
           </h2>
           {!demo && cal && (
             <div className="cal-bar small">
-              {cal.connected ? (
+              {cal.active ? (
                 <span className="muted">
-                  Google Kalender · Stand {cal.fetchedAt ? new Date(cal.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"}
+                  {[cal.connected ? "Google" : null, ...cal.ics.map((f) => f.name)].filter(Boolean).join(" + ")} · Stand {cal.fetchedAt ? new Date(cal.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"}
                 </span>
               ) : (
                 <span className="muted">Kalender nicht verbunden, es werden nur deine Zeitblöcke angezeigt.</span>
               )}
-              {cal.connected && (
+              {cal.active && (
                 <button onClick={() => void syncCalendar(true)} disabled={calBusy} title="Termine neu laden">
                   {calBusy ? "…" : "↻"}
                 </button>
               )}
-              <button onClick={() => setShowCal((x) => !x)}>{cal.connected ? "Kalender …" : "Verbinden …"}</button>
+              <button onClick={() => setShowCal((x) => !x)}>{cal.active ? "Kalender …" : "Verbinden …"}</button>
             </div>
           )}
           {!demo && cal && showCal && (

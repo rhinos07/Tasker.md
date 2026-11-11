@@ -41,7 +41,7 @@ Einstufung: **MVP** = erste Version · **P2** = Phase 2 · **–** = nicht gepla
 | Inbox | ✅ | ✅ | ✅ | ✅ **MVP** (Zähler, Liste, Schnellerfassung) |
 | Kanban / Boards | ✅ (Premium) | ✅ | ✅ | **P2** |
 | Spaces / eigene Ansichten | ✅ (Premium) | ✅ | ✅ Filtersprache | ✅ **MVP** als eigene Filter (6.3) |
-| Kalender lesen | ✅ | ✅ Google, CalDAV | ✅ Google | ✅ **MVP** Google · **P2** Outlook/M365 |
+| Kalender lesen | ✅ | ✅ Google, CalDAV | ✅ Google | ✅ **MVP** Google, ICS-Links (z. B. Outlook) · **P2** M365 über Graph |
 | Kalender schreiben / Timeboxing im Kalender | 🟡 (Premium) | ✅ | ✅ | **P2** (nur nach Bestätigung) |
 | Tages-Zeitleiste / Timeboxing | ❌ | ✅ | 🟡 Dauer und Kalender | ✅ **MVP** (5.1) |
 | Zeiterfassung / Pomodoro | ❌ | ✅ (Stärke) | ❌ | ✅ **MVP** Fokus-Timer, Zeiten lokal und im Vault-Log (6.5) |
@@ -352,12 +352,16 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
 - **Tagesbriefing:** Zu einstellbaren Uhrzeiten (Standard 08:00) kommt eine Zusammenfassung aus der Heute-Ansicht, z. B. „3 geplant, 1 überfällig · nächster Termin 09:00 Daily · erster Zeitblock 10:00“.
 - **Filter:** `erinnerung` zeigt Aufgaben mit ⏰.
 
-## 7. Google Kalender (nur lesen)
+## 7. Kalender (nur lesen): Google und ICS-Links
 - OAuth 2.0 Desktop-Flow (Loopback-Redirect), Scope `calendar.readonly`
 - Client-ID und Secret stammen aus einem eigenen Google-Cloud-Projekt des Nutzers. Sie werden beim Einrichten eingetragen und nicht mit der App ausgeliefert. Die Anleitung steht in der README.
 - Die Kalender werden in den Einstellungen ausgewählt (`calendar.google.calendarIds`).
 - Termine des Tages und der nächsten 14 Tage. Ganztägige Termine erscheinen als Leiste.
-- **P2:** Outlook/Microsoft 365 über Microsoft Graph, z. B. für Firmentermine
+- **ICS-Abos** (`calendar.ics`, nur Id und Name): beliebige ICS-Links, z. B. Outlook „Kalender veröffentlichen“ für den Firmenkalender. Braucht weder API-Key noch Admin-Rechte.
+  - Der Link ist geheim und liegt nur im Schlüsselbund (`ics-url-<id>`); Fehlermeldungen nennen ihn nie. `webcal://` wird zu `https://`.
+  - Serientermine (RRULE), Ausnahmen (EXDATE), geänderte Einzeltermine (RECURRENCE-ID), abgesagte Termine (STATUS:CANCELLED). Zeitzonen per TZID, auch Windows-Namen wie „W. Europe Standard Time“; Unbekanntes gilt als Ortszeit.
+  - Schlägt eine Quelle beim Aktualisieren fehl, bleiben ihre alten Termine im Cache stehen, die anderen werden trotzdem erneuert.
+- **P2:** Outlook/Microsoft 365 über Microsoft Graph (nur nötig, wenn das Veröffentlichen gesperrt ist)
 
 ## 8. Technik
 - **Tauri 2**, Zielsysteme Windows 10/11 und macOS (Apple Silicon und Intel)
@@ -393,7 +397,7 @@ Das Repository ist öffentlich. **Es enthält keine persönlichen Daten.**
 ## 10. Phasen
 - **MVP:** Abschnitte 3 bis 7 und 9
 - **P2:**
-  - Outlook/M365-Kalender
+  - M365-Kalender über Microsoft Graph
   - Zeitblöcke als Termine in Google anlegen (nur nach Bestätigung von Datum und Titel)
   - Worklog nach Jira buchen, auf Knopfdruck mit Prüfdialog (6.5)
   - Aus einem Jira-Ticket eine Vault-Aufgabe mit Link erzeugen

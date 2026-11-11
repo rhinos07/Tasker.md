@@ -153,6 +153,8 @@ code { font-size: 12px; background: var(--tag); padding: 1px 4px; border-radius:
 .calendar-setup .choices label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
 .calendar-setup input:not([type="checkbox"]) { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
 .calendar-setup .row { display: flex; gap: 8px; margin-top: 8px; }
+.calendar-setup h4 { margin: 4px 0 6px; font-size: 12px; }
+.calendar-setup h4:not(:first-child) { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
 .choices { margin-bottom: 4px; }
 
 /* Fokus */

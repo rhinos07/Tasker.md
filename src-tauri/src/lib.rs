@@ -445,6 +445,22 @@ pub fn run() {
             quick::quick_add,
             quick::quick_undo
         ])
-        .run(tauri::generate_context!())
-        .expect("Tasker.md konnte nicht gestartet werden");
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if tray::hide_on_close(window) {
+                    api.prevent_close();
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("Tasker.md konnte nicht gestartet werden")
+        .run(|app, event| {
+            // macOS: Klick aufs Dock-Symbol holt das versteckte Fenster zurück
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                tray::show_main(app);
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }

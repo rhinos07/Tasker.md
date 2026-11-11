@@ -23,6 +23,21 @@ pub struct Config {
     pub filters: Vec<crate::filter::SavedFilter>,
     pub hotkeys: HotkeysConfig,
     pub obsidian: ObsidianConfig,
+    pub tray: TrayConfig,
+}
+
+/// Symbol im Infobereich
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct TrayConfig {
+    /// Fenster schließen = in den Tray minimieren; Beenden über das Tray-Menü
+    pub close_to_tray: bool,
+}
+
+impl Default for TrayConfig {
+    fn default() -> Self {
+        Self { close_to_tray: true }
+    }
 }
 
 /// Globales Tastenkürzel (SPEC 6.6). Leer = aus.
@@ -345,6 +360,7 @@ impl Config {
             focus: FocusConfig::default(),
             hotkeys: HotkeysConfig::default(),
             obsidian: ObsidianConfig::default(),
+            tray: TrayConfig::default(),
             filters: vec![
                 crate::filter::SavedFilter { name: "Telefonate".into(), query: "kontext:@telefon & !warten".into() },
                 crate::filter::SavedFilter {

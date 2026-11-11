@@ -4,6 +4,7 @@
 //! Klicks im Tray-Menü gehen als Ereignis `tray-focus` (`toggle` | `stop`) zurück.
 
 use serde::Deserialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -39,6 +40,33 @@ fn short(s: &str, max: usize) -> String {
     } else {
         format!("{}…", s.chars().take(max - 1).collect::<String>().trim_end())
     }
+}
+
+/// Hinweis „läuft im Infobereich weiter“ nur einmal pro Sitzung
+static HINTED: AtomicBool = AtomicBool::new(false);
+
+/// Schließen des Hauptfensters: in den Tray minimieren statt beenden, wenn eingestellt und ein Tray da ist.
+/// Gibt `true` zurück, wenn das Fenster nur versteckt wurde.
+pub fn hide_on_close(window: &tauri::Window) -> bool {
+    let app = window.app_handle();
+    if window.label() != "main" || app.try_state::<TrayState>().is_none() {
+        return false;
+    }
+    let close_to_tray = crate::resolve_config(app, false).map(|(c, _)| c.tray.close_to_tray).unwrap_or(true);
+    if !close_to_tray {
+        return false;
+    }
+    let _ = window.hide();
+    if !HINTED.swap(true, Ordering::Relaxed) {
+        use tauri_plugin_notification::NotificationExt;
+        let _ = app
+            .notification()
+            .builder()
+            .title("Tasker.md läuft weiter")
+            .body("Das Fenster ist im Infobereich. Beenden über das Tray-Menü.")
+            .show();
+    }
+    true
 }
 
 /// Hauptfenster zeigen und nach vorn holen.

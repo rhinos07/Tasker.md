@@ -34,6 +34,7 @@ interface Config {
   calendar: { refreshMinutes: number; daysAhead: number };
   hotkeys: { quickCapture: string };
   obsidian: { useAdvancedUri: string };
+  tray: { closeToTray: boolean };
 }
 
 interface SettingsData {
@@ -167,6 +168,7 @@ export default function Settings({
       calendar: { refreshMinutes: c.calendar.refreshMinutes, daysAhead: c.calendar.daysAhead },
       hotkeys: { quickCapture: c.hotkeys.quickCapture.trim() },
       obsidian: c.obsidian,
+      tray: c.tray,
     };
     try {
       await invoke("save_settings", { patch });
@@ -343,6 +345,18 @@ export default function Settings({
               >
                 <input value={c.hotkeys.quickCapture} onChange={(e) => set("hotkeys", { quickCapture: e.target.value })} />
               </Field>
+              <h3>Fenster</h3>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={c.tray.closeToTray}
+                  onChange={(e) => set("tray", { closeToTray: e.target.checked })}
+                />{" "}
+                Schließen minimiert in den Tray
+              </label>
+              <p className="muted small">
+                Die App läuft dann im Infobereich weiter, auch ein laufender Fokus-Timer. Beenden über das Tray-Menü.
+              </p>
               <h3>In Obsidian öffnen</h3>
               <Field
                 label="Zeilensprung über das Plugin „Advanced URI“"

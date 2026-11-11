@@ -99,6 +99,9 @@
   "hotkeys": {
     "quickCapture": "CmdOrCtrl+Alt+Space"
   },
+  "tray": {
+    "closeToTray": true
+  },
   "filters": [
     {
       "name": "Anrufe Arbeit",

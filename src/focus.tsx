@@ -89,6 +89,7 @@ export function useFocus(
   demo: boolean,
   onFinished: (task: TaskRef, r: FinishResult, natural: boolean) => void,
   onError: (msg: string) => void,
+  configVersion = 0,
 ): FocusApi {
   const [settings, setSettings] = useState<FocusSettings | null>(null);
   const [state, setState] = useState<TimerState | null>(() => {
@@ -103,7 +104,7 @@ export function useFocus(
 
   useEffect(() => {
     void invoke<FocusSettings>("focus_settings", { demo }).then(setSettings, () => setSettings(null));
-  }, [demo]);
+  }, [demo, configVersion]);
 
   useEffect(() => {
     if (state) localStorage.setItem(STORAGE, JSON.stringify(state));

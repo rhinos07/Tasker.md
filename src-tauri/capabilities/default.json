@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Rechte des Hauptfensters",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "notification:default", "core:window:allow-set-title"]
+  "permissions": ["core:default", "opener:default", "notification:default", "core:window:allow-set-title", "dialog:allow-open"]
 }

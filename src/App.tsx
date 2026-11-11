@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
 import TodayView from "./TodayView";
+import Settings from "./Settings";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
@@ -114,6 +115,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
+
+  // Erster Start ohne Konfiguration: Einrichtung öffnen
+  useEffect(() => {
+    void invoke<{ exists: boolean }>("get_settings").then((d) => !d.exists && setShowSettings(true), () => undefined);
+  }, []);
   const [toast, setToast] = useState<{ text: string; undo?: EditResult; undoLog?: LogChange; complete?: TaskRef } | null>(
     null,
   );
@@ -127,7 +135,7 @@ export default function App() {
     } catch (e) {
       setError(String(e));
     }
-  }, [scope, demo]);
+  }, [scope, demo, configVersion]);
 
   useEffect(() => {
     void load();
@@ -157,7 +165,7 @@ export default function App() {
       cancelled = true;
       unlisten?.();
     };
-  }, [demo]);
+  }, [demo, configVersion]);
 
   const showToast = useCallback(
     (text: string, undo?: EditResult, extra?: { undoLog?: LogChange; complete?: TaskRef }, ms = 8000) => {
@@ -185,7 +193,7 @@ export default function App() {
     [showToast],
   );
   const onFocusError = useCallback((m: string) => showToast(m), [showToast]);
-  const focus = useFocus(demo, onFocusFinished, onFocusError);
+  const focus = useFocus(demo, onFocusFinished, onFocusError, configVersion);
 
   const undoLog = async (c: LogChange) => {
     try {
@@ -276,6 +284,7 @@ export default function App() {
             {live ? "● live" : "○ nicht live"}
           </div>
           <button onClick={() => void load()}>Aktualisieren</button>
+          <button onClick={() => setShowSettings(true)}>⚙ Einstellungen</button>
         </div>
       </aside>
       <main>
@@ -305,7 +314,7 @@ export default function App() {
           <Projects projects={data.index.projects.filter((p) => scope === "all" || p.scope === scope)} />
         )}
         {view === "today" && <TodayView scope={scope === "all" ? null : scope} demo={demo} />}
-        {view === "jira" && <JiraView demo={demo} />}
+        {view === "jira" && <JiraView key={configVersion} demo={demo} />}
         {data && data.index.warnings.length > 0 && (
           <details className="warnings">
             <summary>{data.index.warnings.length} Hinweise</summary>
@@ -313,6 +322,16 @@ export default function App() {
           </details>
         )}
       </main>
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onSaved={() => {
+            setConfigVersion((v) => v + 1);
+            setVersion((v) => v + 1);
+            showToast("Einstellungen gespeichert.");
+          }}
+        />
+      )}
       {toast && (
         <div className="toast" role="status">
           <span>{toast.text}</span>

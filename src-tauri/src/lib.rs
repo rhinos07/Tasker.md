@@ -5,6 +5,7 @@ mod calendar;
 mod focus;
 mod google;
 mod jira;
+mod settings;
 mod today;
 mod watcher;
 
@@ -331,6 +332,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(watcher::WatchState::default())
         .manage(today::BlockLock::default())
         .manage(focus::FocusLock::default())
@@ -362,7 +364,9 @@ pub fn run() {
             focus::focus_undo_log,
             focus::focus_day,
             focus::focus_choose_ticket,
-            focus::focus_set_booked
+            focus::focus_set_booked,
+            settings::get_settings,
+            settings::save_settings
         ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");

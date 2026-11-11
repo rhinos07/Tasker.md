@@ -196,12 +196,13 @@ Ein Eingabefeld übersetzt natürliche Sprache in Tasks-Syntax:
 | Eingabe | Ergebnis |
 |---|---|
 | `heute`, `morgen`, `übermorgen`, `montag` … `sonntag`, `in 3 tagen`, `YYYY-MM-DD` | Datum, standardmäßig als `⏳` |
-| `fällig …` / `due …` vor dem Datum | `📅` statt `⏳` |
-| `!1` / `!2` | `⏫` / `🔼` |
+| `fällig …` / `due …` / `bis …` vor dem Datum | `📅` statt `⏳` |
+| `24.12.`, `am mo`, `in 2 wochen` | weitere Datumsformen |
+| `!1` / `!2` / `!3` | `⏫` / `🔼` / `🔽` |
 | `@telefon` | `#@telefon` (Vorschläge aus `contexts`) |
 | `warten` | `#warten` |
 | `jeden montag`, `jede woche`, `täglich` | `🔁 every monday` usw. |
-| `>Name` | Ziel-Projekt oder -Bereich, mit Autovervollständigung aus dem Index |
+| `>Name` (am Ende, Leerzeichen erlaubt) | Ziel-Projekt oder -Bereich, mit Autovervollständigung aus dem Index |
 
 Beispiel: `Müller anrufen morgen @telefon !1 >Gartenhaus` ergibt `- [ ] Müller anrufen #@telefon ⏫ ⏳ <morgen>` unter „Nächste Schritte“ im Projekt Gartenhaus.
 

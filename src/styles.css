@@ -184,3 +184,15 @@ button.link { border: none; padding: 0; font-size: 11px; color: var(--muted); te
 .modal footer { display: flex; align-items: center; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 10px; }
 .modal footer .path { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Schnelleingabe */
+.quick-backdrop { align-items: flex-start; padding-top: 14vh; }
+.modal.quick { width: min(680px, 92vw); gap: 8px; }
+.quick-input { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; outline: none; }
+.quick-sugg { border: 1px solid var(--border); border-radius: 8px; max-height: 220px; overflow: auto; }
+.quick-sugg li { padding: 5px 10px; cursor: pointer; display: flex; justify-content: space-between; }
+.quick-sugg li.active, .quick-sugg li:hover { background: var(--tag); color: var(--accent); }
+.quick-preview { background: var(--bg); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.quick-preview code { background: none; padding: 0; font-size: 13px; }
+.warn-text { color: var(--warn); }
+.quick-help { line-height: 1.5; }

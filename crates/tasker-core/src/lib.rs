@@ -2,11 +2,13 @@
 //! Ohne UI- und Netzwerk-Abhängigkeiten, damit alles gegen den Demo-Vault testbar ist.
 
 pub mod config;
+pub mod create;
 pub mod edit;
 pub mod focus;
 pub mod focuslog;
 pub mod index;
 pub mod jira;
+pub mod quick;
 pub mod task;
 pub mod today;
 pub mod vault;

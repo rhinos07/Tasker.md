@@ -5,6 +5,7 @@ mod calendar;
 mod focus;
 mod google;
 mod jira;
+mod quick;
 mod settings;
 mod today;
 mod watcher;
@@ -366,7 +367,10 @@ pub fn run() {
             focus::focus_choose_ticket,
             focus::focus_set_booked,
             settings::get_settings,
-            settings::save_settings
+            settings::save_settings,
+            quick::quick_preview,
+            quick::quick_add,
+            quick::quick_undo
         ])
         .run(tauri::generate_context!())
         .expect("Tasker.md konnte nicht gestartet werden");

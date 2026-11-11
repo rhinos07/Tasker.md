@@ -81,6 +81,8 @@ pub struct Index {
     pub jira_mentions: BTreeMap<String, Vec<NoteRef>>,
     /// Ticket-Schlüssel → Projekte, denen er im Feld `jira` zugeordnet ist
     pub jira_assigned: BTreeMap<String, Vec<NoteRef>>,
+    /// Bereichsnotizen (Ziele für neue Aufgaben)
+    pub areas: Vec<NoteRef>,
 }
 
 fn date_of(note: &Note, key: &str) -> Option<NaiveDate> {
@@ -192,7 +194,12 @@ impl Index {
                 jira_assigned.entry(k.clone()).or_default().push(r.clone());
             }
         }
-        Index { today: Some(today), tasks, projects, inbox_count, warnings, jira_mentions, jira_assigned }
+        let areas = notes
+            .iter()
+            .filter(|n| n.kind == NoteKind::Area)
+            .map(|n| NoteRef { path: n.path.clone(), name: n.name.clone() })
+            .collect();
+        Index { today: Some(today), tasks, projects, inbox_count, warnings, jira_mentions, jira_assigned, areas }
     }
 
     /// Die Abschnitte aus SPEC 5.2. `scope = None` heißt „Alle“.

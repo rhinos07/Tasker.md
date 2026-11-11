@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import JiraView from "./JiraView";
 import TodayView from "./TodayView";
 import Settings from "./Settings";
+import QuickEntry, { type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
@@ -122,9 +123,14 @@ export default function App() {
   useEffect(() => {
     void invoke<{ exists: boolean }>("get_settings").then((d) => !d.exists && setShowSettings(true), () => undefined);
   }, []);
-  const [toast, setToast] = useState<{ text: string; undo?: EditResult; undoLog?: LogChange; complete?: TaskRef } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<{
+    text: string;
+    undo?: EditResult;
+    undoLog?: LogChange;
+    undoInsert?: Added;
+    complete?: TaskRef;
+  } | null>(null);
+  const [showQuick, setShowQuick] = useState(false);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const load = useCallback(async () => {
@@ -168,7 +174,7 @@ export default function App() {
   }, [demo, configVersion]);
 
   const showToast = useCallback(
-    (text: string, undo?: EditResult, extra?: { undoLog?: LogChange; complete?: TaskRef }, ms = 8000) => {
+    (text: string, undo?: EditResult, extra?: { undoLog?: LogChange; undoInsert?: Added; complete?: TaskRef }, ms = 8000) => {
       window.clearTimeout(toastTimer.current);
       setToast({ text, undo, ...extra });
       toastTimer.current = window.setTimeout(() => setToast(null), ms);
@@ -203,6 +209,37 @@ export default function App() {
       showToast(String(e));
     }
     setVersion((v) => v + 1);
+  };
+
+  // Schnelleingabe: Taste „q“ (außerhalb von Eingabefeldern) öffnet das Fenster
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "q" && !showSettings) {
+        e.preventDefault();
+        setShowQuick(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSettings]);
+
+  const onQuickAdded = (a: Added) => {
+    const where = a.createdFile ? `neue Notiz ${a.path}` : a.targetName;
+    showToast(`Angelegt in ${where}`, undefined, { undoInsert: a.createdFile ? undefined : a });
+    setVersion((v) => v + 1);
+    void load();
+  };
+  const undoInsert = async (a: Added) => {
+    try {
+      await invoke("quick_undo", { result: a });
+      showToast("Neue Aufgabe wieder entfernt.");
+    } catch (e) {
+      showToast(String(e));
+    }
+    setVersion((v) => v + 1);
+    void load();
   };
 
   // Nach dem Log-Eintrag kann sich die Zeilennummer verschoben haben: Aufgabe frisch nachschlagen.
@@ -283,6 +320,9 @@ export default function App() {
           <div className={live ? "live on" : "live"} title={live ? "Änderungen im Vault werden automatisch übernommen" : "Automatisches Neuladen nicht aktiv"}>
             {live ? "● live" : "○ nicht live"}
           </div>
+          <button onClick={() => setShowQuick(true)} title="Schnelleingabe (Taste q)">
+            + Aufgabe
+          </button>
           <button onClick={() => void load()}>Aktualisieren</button>
           <button onClick={() => setShowSettings(true)}>⚙ Einstellungen</button>
         </div>
@@ -322,6 +362,9 @@ export default function App() {
           </details>
         )}
       </main>
+      {showQuick && (
+        <QuickEntry demo={demo} readOnly={data?.source === "demo"} onClose={() => setShowQuick(false)} onAdded={onQuickAdded} />
+      )}
       {showSettings && (
         <Settings
           onClose={() => setShowSettings(false)}
@@ -343,6 +386,11 @@ export default function App() {
           {toast.complete && (
             <button onClick={() => (setToast(null), void completeFresh(toast.complete!))} disabled={busy}>
               Erledigt abhaken
+            </button>
+          )}
+          {toast.undoInsert && (
+            <button onClick={() => (setToast(null), void undoInsert(toast.undoInsert!))} disabled={busy}>
+              Rückgängig
             </button>
           )}
           {toast.undoLog && (

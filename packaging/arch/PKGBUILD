@@ -1,0 +1,43 @@
+# Arch-Paket (z. B. für Omarchy). Baut aus dem Arbeitsverzeichnis dieses Repos, nicht aus einem Download.
+#
+#   cd packaging/arch && makepkg -si      bauen und installieren
+#
+# pkgver setzt `npm run version:set` mit; nicht von Hand ändern.
+
+pkgname=tasker-md
+pkgver=0.3.0
+pkgrel=1
+pkgdesc="Desktop-Dashboard für einen Obsidian-Vault nach GTD, mit Jira- und Kalender-Einblendung"
+arch=('x86_64')
+url="https://github.com/rhinos07/Tasker.md"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'librsvg' 'dbus' 'hicolor-icon-theme')
+makedepends=('rust' 'nodejs' 'npm')
+optdepends=('gnome-keyring: speichert Jira-Token und Kalender-Zugänge (oder ein anderer Secret-Service-Dienst)')
+options=('!lto' '!debug')
+
+_root="$(realpath "$startdir/../..")"
+
+build() {
+  cd "$_root"
+  npm ci --no-fund --no-audit
+  npm run tauri -- build --no-bundle
+}
+
+check() {
+  cd "$_root"
+  cargo test -p tasker-core
+}
+
+package() {
+  cd "$_root"
+  install -Dm755 target/release/tasker-md "$pkgdir/usr/bin/tasker-md"
+  install -Dm644 packaging/arch/tasker-md.desktop "$pkgdir/usr/share/applications/tasker-md.desktop"
+  local s
+  for s in 32 64 128; do
+    install -Dm644 "src-tauri/icons/${s}x${s}.png" "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/tasker-md.png"
+  done
+  install -Dm644 src-tauri/icons/128x128@2x.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/tasker-md.png"
+  install -Dm644 src-tauri/icons/icon.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/tasker-md.png"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

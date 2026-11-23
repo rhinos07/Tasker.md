@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Versionsnummer an allen drei Stellen setzen oder prüfen: package.json, Cargo.toml (workspace),
-// src-tauri/tauri.conf.json.
+// Versionsnummer an allen Stellen setzen oder prüfen: package.json, Cargo.toml (workspace),
+// src-tauri/tauri.conf.json, packaging/arch/PKGBUILD.
 //
 //   node scripts/version.mjs            zeigt die Versionen
 //   node scripts/version.mjs set 0.2.0  setzt sie überall (und aktualisiert Cargo.lock)
@@ -17,6 +17,11 @@ const files = {
   "src-tauri/tauri.conf.json": {
     get: (t) => JSON.parse(t).version,
     set: (t, v) => t.replace(/("version":\s*")[^"]+(")/, `$1${v}$2`),
+  },
+  // Arch-Paket: pacman erlaubt kein „-“ in pkgver (0.3.0-beta.1 → 0.3.0_beta.1); neue Version → pkgrel=1
+  "packaging/arch/PKGBUILD": {
+    get: (t) => /^pkgver=(.+)$/m.exec(t)?.[1].replace(/_/g, "-"),
+    set: (t, v) => t.replace(/^pkgver=.*$/m, `pkgver=${v.replace(/-/g, "_")}`).replace(/^pkgrel=.*$/m, "pkgrel=1"),
   },
   "Cargo.toml": {
     get: (t) => /\[workspace\.package\][^[]*?\nversion\s*=\s*"([^"]+)"/.exec(t)?.[1],

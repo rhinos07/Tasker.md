@@ -1,6 +1,6 @@
 # Tasker.md
 
-Desktop-Dashboard (Windows, macOS) für einen Obsidian-Vault nach **GTD**, mit Jira- und Kalender-Einblendung.
+Desktop-Dashboard (Windows, macOS, Arch Linux / Omarchy) für einen Obsidian-Vault nach **GTD**, mit Jira- und Kalender-Einblendung.
 Der Vault bleibt die einzige Quelle der Wahrheit. Tasker.md ist nur eine Oberfläche darüber.
 
 > Status: in Arbeit. Es laufen: Heute mit Zeitleiste, Dashboard, Projekte, Jira (nur lesen), Google Kalender (nur lesen), Fokus-Timer mit Vault-Log und Jira-Tageszusammenfassung, Abhaken und „⏳ heute“, Schnelleingabe (Taste `q`), Demnächst mit Umplanen per Drag & Drop, eigene Filter, Tastaturbedienung (Übersicht mit `?`) und globales Kürzel für die Schnellerfassung, In Obsidian öffnen, Fokus-Timer im Tray (Restzeit im Tooltip, Pause/Weiter/Stopp im Menü), Einstellungen.
@@ -37,15 +37,18 @@ Ohne eigene Konfiguration zeigt die App in Debug-Builds den erfundenen [Demo-Vau
 
 ## Installation und Releases
 
-Fertige Installer liegen unter [Releases](../../releases): `.msi` oder `.exe` für Windows, `.dmg` für macOS (Apple Silicon und Intel). Sie sind nicht signiert:
+Fertige Installer liegen unter [Releases](../../releases): `.msi` oder `.exe` für Windows, `.dmg` für macOS (Apple Silicon und Intel), `.pkg.tar.zst` für Arch Linux (z. B. Omarchy). Sie sind nicht signiert:
 
 - **Windows:** SmartScreen warnt beim ersten Start → „Weitere Informationen“ → „Trotzdem ausführen“.
 - **macOS:** Nach dem Kopieren nach „Programme“ einmal `xattr -cr /Applications/Tasker.md.app` im Terminal ausführen.
+- **Arch Linux / Omarchy:** `sudo pacman -U tasker-md-*.pkg.tar.zst`. Die App erscheint danach im Launcher. Für Jira und Kalender braucht es einen Secret-Service-Schlüsselbund wie `gnome-keyring` (bei Omarchy vorinstalliert).
+
+Das Arch-Paket lässt sich auch lokal aus dem Repo bauen und installieren: `cd packaging/arch && makepkg -si`.
 
 Ein neues Release entsteht so:
 
 ```bash
-npm run version:set -- 0.2.0     # setzt die Version in package.json, Cargo.toml und tauri.conf.json
+npm run version:set -- 0.2.0     # setzt die Version in package.json, Cargo.toml, tauri.conf.json und PKGBUILD
 git commit -am "Version 0.2.0"
 git tag v0.2.0 && git push && git push --tags
 ```
@@ -58,6 +61,7 @@ Die Konfiguration liegt **nicht** im Repo, sondern im App-Datenordner:
 
 - Windows: `%APPDATA%\md.tasker.app\config.json`
 - macOS: `~/Library/Application Support/md.tasker.app/config.json`
+- Linux: `~/.config/md.tasker.app/config.json`
 
 Als Vorlage dient [config.example.json](config.example.json). Zugangsdaten wie der Jira-Token kommen nur in den Schlüsselbund des Betriebssystems.
 

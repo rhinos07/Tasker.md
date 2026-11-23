@@ -27,3 +27,8 @@ desktop.ini
 .idea/
 *.swp
 .claude/
+
+# Arch-Paket (makepkg)
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.pkg.tar.zst

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Tasker.md
+Comment=GTD-Dashboard für einen Obsidian-Vault
+Exec=tasker-md
+Icon=tasker-md
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=GTD;Aufgaben;Obsidian;Jira;Kalender;
+StartupWMClass=tasker-md

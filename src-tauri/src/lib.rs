@@ -399,8 +399,14 @@ fn demo_available() -> bool {
 pub fn run() {
     tauri::Builder::default()
         // zuerst: ein zweiter Start (z. B. über das Startmenü, während die App im Tray läuft)
-        // holt nur das vorhandene Fenster nach vorn
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
+        // holt nur das vorhandene Fenster nach vorn, mit `--quick` die Schnellerfassung
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if hotkey::wants_quick(&args) {
+                hotkey::show_quick(app);
+            } else {
+                tray::show_main(app);
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -415,7 +421,12 @@ pub fn run() {
             }
             // Das Hauptfenster startet unsichtbar (tauri.conf.json); versteckt bleibt es nur
             // beim Autostart und nur, wenn es einen Tray gibt, über den man es zurückholt
-            if !(tray.is_ok() && autostart::start_minimized(std::env::args())) {
+            // Mit `--quick` erscheint nur die Schnellerfassung, das Hauptfenster bleibt im Tray
+            let quick = hotkey::wants_quick(std::env::args());
+            if quick {
+                hotkey::show_quick(app.handle());
+            }
+            if !(tray.is_ok() && (quick || autostart::start_minimized(std::env::args()))) {
                 tray::show_main(app.handle());
             }
             reminders::start(app.handle().clone());

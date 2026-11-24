@@ -250,7 +250,7 @@ button.link { border: none; padding: 0; color: var(--accent); }
 .task.selected, .up-card.selected { background: var(--tag); box-shadow: inset 3px 0 0 var(--accent); }
 .task.selected .plan { opacity: 1; }
 kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
-.modal.shortcuts { width: min(560px, 92vw); }
+.modal.shortcuts { width: min(1040px, 96vw); }
 .modal.shortcuts td { padding: 3px 8px; vertical-align: top; }
 .modal.date-dialog { width: min(420px, 92vw); outline: none; }
 .date-quick { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -259,3 +259,24 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; border: 1
 .quick-window, .quick-window body { background: transparent; }
 .quick-window .modal-backdrop { background: transparent; padding: 0; align-items: stretch; }
 .quick-window .modal.quick { width: 100%; max-height: none; border-radius: 0; box-shadow: none; }
+
+/* Tastatur-Navigation (Omarchy-Muster): Ziffern in der Seitenleiste, Befehlspalette, gruppierte Übersicht */
+nav button, .footer button.with-key { display: flex; align-items: center; gap: 6px; }
+.footer button.with-key { justify-content: center; }
+.nav-key { margin-left: auto; opacity: .45; font-size: 10px; }
+nav button.active .nav-key, nav button:hover .nav-key, .footer button.with-key:hover .nav-key { opacity: .8; }
+tr.selected { background: var(--tag); box-shadow: inset 3px 0 0 var(--accent); }
+tr[data-task-key] { cursor: default; }
+.palette-backdrop { align-items: flex-start; padding-top: 14vh; }
+.modal.palette { width: min(620px, 92vw); padding: 10px; gap: 8px; }
+.modal.palette input { width: 100%; font-size: 15px; padding: 8px 10px; box-sizing: border-box; }
+.palette-list { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 52vh; }
+.palette-list li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.palette-list li.active { background: var(--tag); box-shadow: inset 3px 0 0 var(--accent); }
+.palette-group { color: var(--muted); font-size: 11px; min-width: 88px; }
+.palette-label { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.shortcut-groups { overflow: auto; columns: 2 440px; column-gap: 28px; }
+.shortcut-groups section { break-inside: avoid; margin-bottom: 8px; }
+.shortcut-groups table { width: 100%; border-collapse: collapse; }
+.shortcut-groups td:first-child { white-space: nowrap; width: 212px; }
+.shortcut-groups h3 { margin: 6px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

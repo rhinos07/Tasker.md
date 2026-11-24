@@ -9,19 +9,35 @@ import Settings, { type Tab as SettingsTab } from "./Settings";
 import QuickEntry, { blockDay, type Added } from "./QuickEntry";
 import { FocusBar, useFocus, type FinishResult, type LogChange } from "./focus";
 import { ActionsContext, TaskRow, type Actions } from "./tasks";
-import { DateDialog, SelectionContext, ShortcutHelp, scrollToKey, visibleKeys } from "./keyboard";
+import {
+  DateDialog,
+  SelectionContext,
+  ShortcutHelp,
+  halfPage,
+  projectKey,
+  projectPath,
+  scrollToKey,
+  sectionKey,
+  useNavItem,
+  visibleKeys,
+} from "./keyboard";
+import CommandPalette, { type Command } from "./CommandPalette";
+import { TABS as SETTINGS_TABS } from "./Settings";
 import type { EditResult, Overview, ProjectInfo, Scope, TaskRef } from "./types";
 
 type View = "today" | "dashboard" | "projects" | "jira" | "upcoming" | "filter-new" | `filter:${string}`;
 type ScopeChoice = Scope | "all";
 
-const VIEWS: { id: View; label: string; ready: boolean }[] = [
-  { id: "today", label: "Heute", ready: true },
-  { id: "dashboard", label: "Dashboard", ready: true },
-  { id: "projects", label: "Projekte", ready: true },
-  { id: "jira", label: "Jira", ready: true },
-  { id: "upcoming", label: "Demnächst", ready: true },
+// Reihenfolge = Alt+1 … Alt+5 (wie SUPER+1 … für die Arbeitsbereiche in Omarchy)
+const VIEWS: { id: View; label: string; ready: boolean; g: string }[] = [
+  { id: "today", label: "Heute", ready: true, g: "h" },
+  { id: "dashboard", label: "Dashboard", ready: true, g: "d" },
+  { id: "upcoming", label: "Demnächst", ready: true, g: "n" },
+  { id: "projects", label: "Projekte", ready: true, g: "p" },
+  { id: "jira", label: "Jira", ready: true, g: "j" },
 ];
+/** Eigene Filter folgen auf Alt+6 … Alt+9. */
+const FILTER_SLOTS = 9 - VIEWS.length;
 
 function Section({ title, tasks }: { title: string; tasks: TaskRef[] }) {
   return (
@@ -55,6 +71,41 @@ function GroupedSection({ title, groups }: { title: string; groups: Record<strin
 
 const fmtH = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${m} min`);
 
+function ProjectRow({ p }: { p: ProjectInfo }) {
+  const { selected, ...nav } = useNavItem(projectKey(p.path));
+  const cls = [p.reviewDue ? "warn" : "", selected ? "selected" : ""].filter(Boolean).join(" ");
+  return (
+    <tr {...nav} className={cls || undefined}>
+      <td>
+        {p.name}
+        {p.nextActions === 0 && <span className="badge alert">ohne nächste Aktion</span>}
+      </td>
+      <td>{p.area ?? "–"}</td>
+      <td>{p.openTasks}</td>
+      <td>{p.daysToDeadline ?? "–"}</td>
+      <td>
+        {p.daysSinceReview ?? "–"}
+        {p.reviewDue && <span className="badge">Review fällig</span>}
+      </td>
+      <td className="muted">{p.focusTotal > 0 ? `${fmtH(p.focusWeek)} / ${fmtH(p.focusTotal)}` : "–"}</td>
+      <td>
+        {p.jiraAssigned.map((k) => (
+          <span key={k} className="badge jira">
+            → {k}
+          </span>
+        ))}
+        {p.jiraMentions
+          .filter((k) => !p.jiraAssigned.includes(k))
+          .map((k) => (
+            <span key={k} className="badge muted">
+              {k}
+            </span>
+          ))}
+      </td>
+    </tr>
+  );
+}
+
 function Projects({ projects }: { projects: ProjectInfo[] }) {
   const active = projects.filter((p) => p.status === "aktiv");
   return (
@@ -76,34 +127,7 @@ function Projects({ projects }: { projects: ProjectInfo[] }) {
         </thead>
         <tbody>
           {active.map((p) => (
-            <tr key={p.path} className={p.reviewDue ? "warn" : undefined}>
-              <td>
-                {p.name}
-                {p.nextActions === 0 && <span className="badge alert">ohne nächste Aktion</span>}
-              </td>
-              <td>{p.area ?? "–"}</td>
-              <td>{p.openTasks}</td>
-              <td>{p.daysToDeadline ?? "–"}</td>
-              <td>
-                {p.daysSinceReview ?? "–"}
-                {p.reviewDue && <span className="badge">Review fällig</span>}
-              </td>
-              <td className="muted">{p.focusTotal > 0 ? `${fmtH(p.focusWeek)} / ${fmtH(p.focusTotal)}` : "–"}</td>
-              <td>
-                {p.jiraAssigned.map((k) => (
-                  <span key={k} className="badge jira">
-                    → {k}
-                  </span>
-                ))}
-                {p.jiraMentions
-                  .filter((k) => !p.jiraAssigned.includes(k))
-                  .map((k) => (
-                    <span key={k} className="badge muted">
-                      {k}
-                    </span>
-                  ))}
-              </td>
-            </tr>
+            <ProjectRow key={p.path} p={p} />
           ))}
         </tbody>
       </table>
@@ -143,6 +167,7 @@ export default function App() {
   const registry = useRef(new Map<string, TaskRef>()).current;
   const [dateTask, setDateTask] = useState<TaskRef | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
   const [hotkey, setHotkey] = useState<string | null>(null);
   const gPending = useRef(0);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -360,21 +385,73 @@ export default function App() {
   const undo = (e: EditResult) => void run("undo_edit", { edit: e }, () => "Rückgängig gemacht");
 
   // --- Tastatur (SPEC 6.6) ---
+  // SUPER gehört Hyprland/dem System; die App übernimmt nur dessen Muster: Alt+Ziffer wie SUPER+Ziffer,
+  // Ctrl+Tab wie SUPER+Tab, dazu Vim-Tasten (j/k, J/K, gg/G, Ctrl+d/u, H/L wie Puffer in LazyVim).
+  const viewOrder: View[] = [...VIEWS.map((v) => v.id), ...filters.map((f) => `filter:${f.name}` as View)];
+  const goView = (to: View) => {
+    setView(to);
+    setSelected(null);
+  };
+  const cycleView = (step: 1 | -1) => {
+    const i = viewOrder.indexOf(view);
+    goView(viewOrder[i < 0 ? (step > 0 ? 0 : viewOrder.length - 1) : (i + step + viewOrder.length) % viewOrder.length]);
+  };
+  const openProject = async (path: string) => {
+    try {
+      await invoke("open_in_obsidian", { path, line: 0, demo });
+    } catch (e) {
+      showToast(String(e));
+    }
+  };
+  const selectKey = (k: string | null) => {
+    if (!k) return;
+    setSelected(k);
+    scrollToKey(k);
+  };
   const onKeyRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
   onKeyRef.current = (e: KeyboardEvent) => {
     const el = e.target as HTMLElement;
-    if (el.closest("input, textarea, select, [contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (showSettings || showQuick || dateTask || showHelp) return; // Dialoge haben eigene Tasten
+    const inField = !!el.closest("input, textarea, select, [contenteditable]");
+    const dialog = showSettings || showQuick || dateTask || showHelp || showPalette;
     const k = e.key;
-    // g-Folgen: g h, g d, g p, g j, g n
+    const ctrlOnly = e.ctrlKey && !e.altKey && !e.metaKey;
+    // Palette und Einstellungen gehen auch aus einem Eingabefeld heraus
+    if (ctrlOnly && !dialog && (k === "k" || k === "K" || k === ",")) {
+      e.preventDefault();
+      if (k === ",") setShowSettings("vault");
+      else setShowPalette(true);
+      return;
+    }
+    if (dialog) return; // Dialoge haben eigene Tasten
+    if (ctrlOnly && k === "Tab") {
+      e.preventDefault();
+      cycleView(e.shiftKey ? -1 : 1);
+      return;
+    }
+    // Alt+Ziffer: über e.code, weil Alt auf macOS die Zeichen verändert
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
+      const n = Number(e.code.slice(5));
+      const to = n <= VIEWS.length ? VIEWS[n - 1].id : filters[n - VIEWS.length - 1] && (`filter:${filters[n - VIEWS.length - 1].name}` as View);
+      e.preventDefault();
+      if (to) goView(to);
+      else showToast(`Alt+${n}: kein eigener Filter an dieser Stelle.`);
+      return;
+    }
+    if (inField) return;
+    if (ctrlOnly && (k === "d" || k === "u")) {
+      e.preventDefault();
+      const next = halfPage(selected, k === "d" ? 1 : -1);
+      if (next) setSelected(next);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // g-Folgen: g h, g d, g n, g p, g j, g g
     if (gPending.current && Date.now() - gPending.current < 1200) {
       gPending.current = 0;
-      const to = ({ h: "today", d: "dashboard", p: "projects", j: "jira", n: "upcoming" } as Record<string, View>)[k];
-      if (to) {
-        e.preventDefault();
-        setView(to);
-        setSelected(null);
-      }
+      e.preventDefault();
+      if (k === "g") selectKey(visibleKeys()[0] ?? null);
+      const to = VIEWS.find((v) => v.g === k);
+      if (to) goView(to.id);
       return;
     }
     if (k === "g") {
@@ -385,23 +462,36 @@ export default function App() {
       const keys = visibleKeys();
       if (!keys.length) return;
       const i = selected ? keys.indexOf(selected) : -1;
-      const next = keys[i < 0 ? (step > 0 ? 0 : keys.length - 1) : Math.min(keys.length - 1, Math.max(0, i + step))];
-      setSelected(next);
-      scrollToKey(next);
+      selectKey(keys[i < 0 ? (step > 0 ? 0 : keys.length - 1) : Math.min(keys.length - 1, Math.max(0, i + step))]);
     };
     const simple: Record<string, () => void> = {
       j: () => nav(1),
       ArrowDown: () => nav(1),
       k: () => nav(-1),
       ArrowUp: () => nav(-1),
+      J: () => selectKey(sectionKey(selected, 1)),
+      K: () => selectKey(sectionKey(selected, -1)),
+      G: () => selectKey(visibleKeys().slice(-1)[0] ?? null),
+      L: () => cycleView(1),
+      H: () => cycleView(-1),
       q: () => setShowQuick(true),
-      "/": () => setView("filter-new"),
+      "/": () => goView("filter-new"),
+      ":": () => setShowPalette(true),
       "?": () => setShowHelp(true),
       Escape: () => setSelected(null),
     };
     if (simple[k]) {
       e.preventDefault();
       simple[k]();
+      return;
+    }
+    const project = projectPath(selected);
+    if (k === "Enter" && !el.closest("button, a, summary")) {
+      e.preventDefault();
+      const t = selected && visibleKeys().includes(selected) ? registry.get(selected) : undefined;
+      if (project) void openProject(project);
+      else if (t) actions.openInObsidian(t);
+      else showToast("Erst eine Zeile mit j/k oder einem Klick auswählen.");
       return;
     }
     const onTask: Record<string, (t: TaskRef) => void> = {
@@ -423,12 +513,49 @@ export default function App() {
     };
     if (onTask[k]) {
       e.preventDefault();
+      if (project && k === "o") {
+        void openProject(project);
+        return;
+      }
       const t = selected && visibleKeys().includes(selected) ? registry.get(selected) : undefined;
-      if (!t) showToast("Erst eine Aufgabe mit j/k oder einem Klick auswählen.");
+      if (!t) showToast(project ? "Das ist ein Projekt: Enter oder o öffnet es in Obsidian." : "Erst eine Aufgabe mit j/k oder einem Klick auswählen.");
       else if (actions.readOnly && "xtd120s".includes(k)) showToast("Demo-Vault ist schreibgeschützt.");
       else onTask[k](t);
     }
   };
+
+  // Befehlspalette: alles, was man über Tasten erreicht, auch per Suche
+  const scopeLabel = { work: "Arbeit", private: "Privat", all: "Alle" } as const;
+  const commands: Command[] = [
+    ...VIEWS.map((v, i) => ({ id: `view:${v.id}`, group: "Ansicht", label: v.label, key: `Alt+${i + 1}`, run: () => goView(v.id) })),
+    ...filters.map((f, i) => ({
+      id: `filter:${f.name}`,
+      group: "Filter",
+      label: f.name,
+      key: i < FILTER_SLOTS ? `Alt+${VIEWS.length + i + 1}` : undefined,
+      run: () => goView(`filter:${f.name}` as View),
+    })),
+    { id: "filter-new", group: "Filter", label: "Suche / neuer Filter", key: "/", run: () => goView("filter-new") },
+    ...(data?.index.projects ?? [])
+      .filter((p) => p.status === "aktiv" && (scope === "all" || p.scope === scope))
+      .map((p) => ({ id: `project:${p.path}`, group: "Projekt", label: `${p.name} in Obsidian öffnen`, run: () => void openProject(p.path) })),
+    { id: "quick", group: "Aktion", label: "Neue Aufgabe", key: "q", run: () => setShowQuick(true) },
+    { id: "reload", group: "Aktion", label: "Aktualisieren", run: () => void load() },
+    ...(["work", "private", "all"] as const).map((s) => ({
+      id: `scope:${s}`,
+      group: "Bereich",
+      label: `${scopeLabel[s]} anzeigen`,
+      run: () => setScope(s),
+    })),
+    { id: "help", group: "Hilfe", label: "Tastenkürzel", key: "?", run: () => setShowHelp(true) },
+    ...SETTINGS_TABS.map((t) => ({
+      id: `settings:${t.id}`,
+      group: "Einstellungen",
+      label: t.label,
+      key: t.id === "vault" ? "Ctrl+," : undefined,
+      run: () => setShowSettings(t.id),
+    })),
+  ];
   useEffect(() => {
     const h = (e: KeyboardEvent) => onKeyRef.current(e);
     window.addEventListener("keydown", h);
@@ -468,22 +595,30 @@ export default function App() {
       <aside>
         <div className="brand">Tasker.md</div>
         <nav>
-          {VIEWS.map((v) => (
-            <button key={v.id} className={view === v.id ? "active" : undefined} onClick={() => setView(v.id)} disabled={!v.ready} title={v.ready ? undefined : "folgt"}>
+          {VIEWS.map((v, i) => (
+            <button
+              key={v.id}
+              className={view === v.id ? "active" : undefined}
+              onClick={() => goView(v.id)}
+              disabled={!v.ready}
+              title={v.ready ? `Alt+${i + 1} · g ${v.g}` : "folgt"}
+            >
               {v.label}
+              <kbd className="nav-key">{i + 1}</kbd>
             </button>
           ))}
         </nav>
         <nav className="filters" aria-label="Eigene Filter">
           <div className="nav-title">Filter</div>
-          {filters.map((f) => (
+          {filters.map((f, i) => (
             <button
               key={f.name}
               className={view === `filter:${f.name}` ? "active" : undefined}
-              onClick={() => setView(`filter:${f.name}`)}
-              title={f.query}
+              onClick={() => goView(`filter:${f.name}`)}
+              title={i < FILTER_SLOTS ? `${f.query} · Alt+${VIEWS.length + i + 1}` : f.query}
             >
               {f.name}
+              {i < FILTER_SLOTS && <kbd className="nav-key">{VIEWS.length + i + 1}</kbd>}
             </button>
           ))}
           <button className={view === "filter-new" ? "active muted" : "muted"} onClick={() => setView("filter-new")}>
@@ -509,7 +644,12 @@ export default function App() {
             + Aufgabe
           </button>
           <button onClick={() => void load()}>Aktualisieren</button>
-          <button onClick={() => setShowSettings("vault")}>⚙ Einstellungen</button>
+          <button className="with-key" onClick={() => setShowPalette(true)} title="Befehlspalette (: oder Ctrl+K)">
+            Befehle … <kbd className="nav-key">:</kbd>
+          </button>
+          <button onClick={() => setShowSettings("vault")} title="Einstellungen (Ctrl+,)">
+            ⚙ Einstellungen
+          </button>
         </div>
       </aside>
       <main>
@@ -584,6 +724,7 @@ export default function App() {
         />
       )}
       {showHelp && <ShortcutHelp hotkey={hotkey} onClose={() => setShowHelp(false)} />}
+      {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
       {showQuick && (
         <QuickEntry demo={demo} readOnly={data?.source === "demo"} onClose={() => setShowQuick(false)} onAdded={onQuickAdded} />
       )}

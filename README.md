@@ -41,9 +41,9 @@ Fertige Installer liegen unter [Releases](../../releases): `.msi` oder `.exe` f�
 
 - **Windows:** SmartScreen warnt beim ersten Start → „Weitere Informationen“ → „Trotzdem ausführen“.
 - **macOS:** Nach dem Kopieren nach „Programme“ einmal `xattr -cr /Applications/Tasker.md.app` im Terminal ausführen.
-- **Arch Linux / Omarchy:** `sudo pacman -U tasker-md-*.pkg.tar.zst`. Die App erscheint danach im Launcher. Für Jira und Kalender braucht es einen Secret-Service-Schlüsselbund wie `gnome-keyring` (bei Omarchy vorinstalliert).
+- **Arch Linux / Omarchy:** `sudo pacman -U tasker-md-*.pkg.tar.zst`. Die App erscheint danach im Launcher. Für Jira und Kalender braucht es einen Secret-Service-Schlüsselbund wie `gnome-keyring` (bei Omarchy vorinstalliert). Das globale Kürzel greift unter Wayland nicht; stattdessen `tasker-md --quick` auf eine Hyprland-Taste legen (siehe [Handbuch, Abschnitt 15](docs/HANDBUCH.md#15-infobereich-autostart-und-globales-tastenkürzel)).
 
-Das Arch-Paket lässt sich auch lokal aus dem Repo bauen und installieren: `cd packaging/arch && makepkg -si`.
+Das Arch-Paket lässt sich auch lokal aus dem Repo bauen und installieren: `cd packaging/arch && makepkg -si`. Sind Rust und Node über rustup bzw. mise statt pacman installiert, mit `makepkg -sid` (überspringt die Prüfung der Build-Abhängigkeiten).
 
 Ein neues Release entsteht so:
 

@@ -8,6 +8,16 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 pub const QUICK_LABEL: &str = "quick";
 
+/// Startparameter: öffnet nur die Schnellerfassung. Für Systeme, auf denen das globale Kürzel
+/// nicht greift (Wayland, z. B. Hyprland/Omarchy): dort bindet man `tasker-md --quick` an eine Taste.
+/// Läuft die App schon, reicht der zweite Start den Parameter an die laufende Instanz weiter.
+pub const QUICK_ARG: &str = "--quick";
+
+/// Wurde die App mit `--quick` gestartet?
+pub fn wants_quick<S: AsRef<str>>(args: impl IntoIterator<Item = S>) -> bool {
+    args.into_iter().any(|a| a.as_ref() == QUICK_ARG)
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HotkeyStatus {
@@ -58,12 +68,19 @@ fn open_quick(app: &AppHandle) {
         .build();
 }
 
+/// Läuft die Sitzung unter Wayland (z. B. Hyprland)?
+fn is_wayland() -> bool {
+    cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some_and(|v| !v.is_empty())
+}
+
 /// Registriert das Kürzel aus der Konfiguration neu (nach Start und nach dem Speichern der Einstellungen).
 pub fn apply(app: &AppHandle) -> HotkeyStatus {
     let shortcut = crate::resolve_config(app, false).map(|(c, _)| c.hotkeys.quick_capture).unwrap_or_default();
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
-    let status = if shortcut.trim().is_empty() {
+    let status = if shortcut.trim().is_empty() || is_wayland() {
+        // Unter Wayland kommen globale Kürzel nur bei X11-Fenstern an, also praktisch nie.
+        // Stattdessen bindet man dort `tasker-md --quick` im Compositor an eine Taste.
         HotkeyStatus { shortcut, active: false, error: None }
     } else {
         match gs.register(shortcut.trim()) {

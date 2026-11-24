@@ -399,7 +399,17 @@ Das **Tagesbriefing** kommt zu den eingestellten Uhrzeiten (Standard 08:00) als 
   - Der Schalter wirkt sofort, ohne „Speichern“, und ist standardmäßig aus.
   - Unter Windows gilt der Eintrag nur für deinen Benutzer, unter macOS ist er ein LaunchAgent. Ausschalten entfernt ihn vollständig.
 - **Globales Tastenkürzel:** Standard ist `Strg+Alt+Leertaste` (macOS: `Cmd+Option+Leertaste`). Es öffnet die Schnelleingabe als kleines Fenster, auch wenn Tasker.md im Hintergrund läuft. Leer lassen schaltet es ab. Ist das Kürzel schon von einem anderen Programm belegt, meldet die App das beim Start.
-- **Nur eine Instanz:** Startest du Tasker.md ein zweites Mal, kommt das laufende Fenster nach vorn.
+- **Wayland (Hyprland, Omarchy):** Dort kommen globale Kürzel bei der App nicht an, Tasker.md registriert es deshalb gar nicht. Stattdessen legst du im Compositor eine Taste auf `tasker-md --quick`. Bei Omarchy (Hyprland mit Lua-Konfiguration) zum Beispiel so:
+  ```lua
+  -- ~/.config/hypr/bindings.lua
+  o.bind("SUPER + ALT + T", "Tasker.md Schnellerfassung", { launch = "tasker-md --quick" })
+  -- ~/.config/hypr/hyprland.lua
+  o.window({ title = "^Neue Aufgabe – Tasker\\.md$" }, { float = true, center = true, pin = true })
+  -- ~/.config/hypr/autostart.lua (statt des Autostart-Schalters der App)
+  o.launch_on_start("tasker-md --minimized")
+  ```
+  Die Fensterregel lässt die Schnellerfassung schwebend und zentriert erscheinen statt gekachelt. Danach mit `hyprctl reload` und `hyprctl configerrors` prüfen.
+- **Nur eine Instanz:** Startest du Tasker.md ein zweites Mal, kommt das laufende Fenster nach vorn. Mit `--quick` öffnet sich nur die Schnellerfassung, auch wenn Tasker.md noch nicht lief.
 
 ## 16. Google Kalender verbinden
 
@@ -442,9 +452,35 @@ Die ausführliche Anleitung mit allen Menüpunkten steht in der [README](../READ
 
 Die Taste `?` zeigt diese Übersicht jederzeit an.
 
+Die Belegung folgt dem Muster von Omarchy und Hyprland: Tasten mit `SUPER` gehören dem Fenstermanager, Tasker.md benutzt keine davon. Stattdessen gibt es dieselben Muster ohne `SUPER` (`Alt+Ziffer` wie `SUPER+Ziffer` für Arbeitsbereiche, `Ctrl+Tab` wie `SUPER+Tab`) und Vim-Tasten wie in Neovim.
+
+**Ansichten**
+
 | Taste | Aktion |
 |---|---|
-| `j` / `k` (oder Pfeiltasten) | Auswahl nach unten / oben |
+| `Alt+1` … `Alt+5` | Heute · Dashboard · Demnächst · Projekte · Jira (die Ziffer steht in der Seitenleiste) |
+| `Alt+6` … `Alt+9` | eigene Filter in der Reihenfolge der Seitenleiste |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | nächste / vorige Ansicht |
+| `L` / `H` | nächste / vorige Ansicht (wie Puffer in LazyVim) |
+| `g h` · `g d` · `g n` · `g p` · `g j` | Heute · Dashboard · Demnächst · Projekte · Jira |
+
+**Bewegen**
+
+| Taste | Aktion |
+|---|---|
+| `j` / `k` (oder Pfeiltasten) | nächste / vorige Zeile |
+| `J` / `K` | nächster / voriger Abschnitt, in „Demnächst“ der nächste / vorige Tag |
+| `g g` / `G` | erste / letzte Zeile |
+| `Ctrl+d` / `Ctrl+u` | halbe Seite nach unten / oben |
+| `Enter` | Aufgabe oder Projekt in Obsidian öffnen |
+| `Esc` | Auswahl aufheben, Dialog schließen |
+
+In „Projekte“ lassen sich die Zeilen ebenfalls mit `j`/`k` auswählen. `Enter` oder `o` öffnet die Projektnotiz.
+
+**Aufgabe** (wirkt auf die ausgewählte Zeile)
+
+| Taste | Aktion |
+|---|---|
 | `x` | abhaken |
 | `t` | für heute planen, nochmal: entfernen |
 | `d` | Datum wählen (`⏳`) |
@@ -452,12 +488,19 @@ Die Taste `?` zeigt diese Übersicht jederzeit an.
 | `s` | in Arbeit, nochmal: wieder offen |
 | `o` | in Obsidian öffnen |
 | `f` | Fokus-Timer starten |
+
+**Allgemein**
+
+| Taste | Aktion |
+|---|---|
+| `:` oder `Ctrl+K` | Befehlspalette |
 | `/` | Suche |
 | `q` | Schnelleingabe |
-| `g h` · `g d` · `g p` · `g j` · `g n` | Heute · Dashboard · Projekte · Jira · Demnächst |
-| `Esc` | Auswahl aufheben, Dialog schließen |
+| `Ctrl+,` | Einstellungen; darin wechseln `Ctrl+Tab` bzw. `H`/`L` die Reiter |
 | `?` | Übersicht der Tastenkürzel |
-| `Strg+Alt+Leertaste` (global, einstellbar) | Schnelleingabe, auch wenn die App im Hintergrund ist |
+| `Strg+Alt+Leertaste` (global, einstellbar) | Schnelleingabe, auch wenn die App im Hintergrund ist; unter Wayland stattdessen eine Compositor-Taste auf `tasker-md --quick` (siehe [Abschnitt 15](#15-infobereich-autostart-und-globales-tastenkürzel)) |
+
+**Befehlspalette:** `:` oder `Ctrl+K` öffnet eine Suchzeile wie den Omarchy-Starter. Sie findet Ansichten, eigene Filter, aktive Projekte (öffnet sie in Obsidian), Aktionen wie „Neue Aufgabe“, „Aktualisieren“ oder „Arbeit anzeigen“ und die Reiter der Einstellungen. Die Suche ist unscharf: `dmn` findet „Demnächst“. Auswahl mit den Pfeiltasten, `Ctrl+j`/`Ctrl+k` oder `Tab`, ausführen mit `Enter`. Rechts steht jeweils die Taste, die dasselbe direkt auslöst.
 
 ## 19. Wo liegen meine Daten?
 

@@ -47,7 +47,7 @@ interface SettingsData {
 }
 
 export type Tab = "vault" | "gtd" | "focus" | "reminders" | "jira" | "calendar" | "keys";
-const TABS: { id: Tab; label: string }[] = [
+export const TABS: { id: Tab; label: string }[] = [
   { id: "vault", label: "Vault" },
   { id: "gtd", label: "GTD" },
   { id: "focus", label: "Heute & Fokus" },
@@ -132,8 +132,18 @@ export default function Settings({
     );
   }, []);
 
+  // Esc schließt; Ctrl+Tab bzw. außerhalb von Eingabefeldern H / L wechseln den Reiter
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onClose();
+      const inField = !!(e.target as HTMLElement).closest("input, textarea, select, [contenteditable]");
+      const ctrlTab = e.ctrlKey && !e.altKey && !e.metaKey && e.key === "Tab";
+      const vim = !inField && !e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "H" || e.key === "L");
+      if (!ctrlTab && !vim) return;
+      e.preventDefault();
+      const step = (ctrlTab && e.shiftKey) || e.key === "H" ? -1 : 1;
+      setTab((t) => TABS[(TABS.findIndex((x) => x.id === t) + step + TABS.length) % TABS.length].id);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -407,7 +417,7 @@ export default function Settings({
               <h3>Globales Tastenkürzel</h3>
               <Field
                 label="Schnellerfassung"
-                hint="Öffnet die Schnellerfassung auch, wenn die App im Hintergrund ist. Beispiele: CmdOrCtrl+Alt+Space, Ctrl+Shift+T. Leer = aus. Die App muss laufen, z. B. per Autostart im Infobereich."
+                hint="Öffnet die Schnellerfassung auch, wenn die App im Hintergrund ist. Beispiele: CmdOrCtrl+Alt+Space, Ctrl+Shift+T. Leer = aus. Die App muss laufen, z. B. per Autostart im Infobereich. Unter Wayland (z. B. Hyprland, Omarchy) greift es nicht: Dort im Compositor eine Taste auf „tasker-md --quick“ legen."
               >
                 <input value={c.hotkeys.quickCapture} onChange={(e) => set("hotkeys", { quickCapture: e.target.value })} />
               </Field>

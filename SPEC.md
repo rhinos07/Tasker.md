@@ -310,7 +310,7 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
 - Schutz vor Doppelbuchungen: Gebuchte Einträge werden lokal mit der Worklog-ID gemerkt, ein zweites Buchen wird blockiert. „Rückgängig“ löscht nur den eigenen, gerade angelegten Worklog, und das nur nach Rückfrage.
 
 ### 6.6 Tastatur und globales Tastenkürzel
-- **Globales Tastenkürzel** (Standard `Ctrl+Alt+Space` bzw. `Cmd+Option+Space`, einstellbar): öffnet die Schnellerfassung als kleines Fenster, auch wenn die App im Hintergrund läuft.
+- **Globales Tastenkürzel** (Standard `Ctrl+Alt+Space` bzw. `Cmd+Option+Space`, einstellbar): öffnet die Schnellerfassung als kleines Fenster, auch wenn die App im Hintergrund läuft. Unter Wayland wird es nicht registriert; dort startet `tasker-md --quick` die Schnellerfassung (an eine Compositor-Taste gebunden).
 - **In der App:**
 
 | Taste | Aktion |
@@ -324,8 +324,18 @@ In v1 schreibt die App **nicht** in Jira. Sie bereitet die Fokus-Zeiten aber so 
 | `f` | Fokus-Timer starten |
 | `/` | Suche |
 | `q` | Schnelleingabe |
-| `g h` · `g d` · `g p` · `g j` · `g n` | Heute · Dashboard · Projekte · Jira · Demnächst |
+| `g h` · `g d` · `g n` · `g p` · `g j` | Heute · Dashboard · Demnächst · Projekte · Jira |
+| `Alt+1` … `Alt+9` | Ansichten in der Reihenfolge der Seitenleiste, ab `Alt+6` eigene Filter |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab`, `L` / `H` | nächste / vorige Ansicht |
+| `J` / `K` | nächster / voriger Abschnitt (Karte) |
+| `g g` / `G` | erste / letzte Zeile |
+| `Ctrl+d` / `Ctrl+u` | halbe Seite |
+| `Enter` | Aufgabe oder Projekt in Obsidian öffnen; Projektzeilen sind mit `j`/`k` auswählbar |
+| `:` / `Ctrl+K` | Befehlspalette (unscharfe Suche über Ansichten, Filter, Projekte, Aktionen, Einstellungsreiter) |
+| `Ctrl+,` | Einstellungen; darin `Ctrl+Tab` bzw. `H`/`L` für die Reiter |
 | `?` | Übersicht der Tastenkürzel |
+
+- **Belegungsregel:** Tasten mit `SUPER`/`Cmd`-Fenstermanager-Bedeutung belegt die App nicht. Sie übernimmt deren Muster (Omarchy/Hyprland: `SUPER+Ziffer`, `SUPER+Tab`) mit `Alt` bzw. `Ctrl` und ergänzt Vim-Tasten.
 
 **Infobereich und Autostart:**
 - **Schließen** minimiert in den Tray (`tray.closeToTray`, Standard an). Beenden geht über das Tray-Menü.

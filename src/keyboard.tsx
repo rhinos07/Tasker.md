@@ -3,7 +3,7 @@
 // Die Auswahl folgt dem, was gerade sichtbar ist: Jede Aufgabenzeile trägt `data-task-key` und meldet
 // sich im Register an. j/k springen in Dokumentreihenfolge durch die sichtbaren Zeilen.
 
-import { createContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { TaskRef } from "./types";
 
 export const taskKey = (t: TaskRef) => `${t.notePath}:${t.task.line}`;
@@ -16,12 +16,76 @@ export interface Selection {
 }
 export const SelectionContext = createContext<Selection | null>(null);
 
+/** Schlüssel einer Projektzeile; Projekte sind auswählbar, aber keine Aufgaben. */
+export const projectKey = (path: string) => `project:${path}`;
+export const projectPath = (key: string | null) => (key?.startsWith("project:") ? key.slice(8) : null);
+
+/** Auswählbare Zeile, die keine Aufgabe ist (z. B. ein Projekt). */
+export function useNavItem(key: string) {
+  const sel = useContext(SelectionContext);
+  return {
+    "data-task-key": key,
+    selected: sel?.selected === key,
+    onMouseDown: (e: React.MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("button, input, a")) sel?.select(key);
+    },
+  };
+}
+
+function visibleElements(): HTMLElement[] {
+  const seen = new Set<string>();
+  return [...document.querySelectorAll<HTMLElement>("main [data-task-key]")].filter((el) => {
+    const k = el.dataset.taskKey!;
+    if (el.offsetParent === null || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 /** Sichtbare Aufgabenzeilen im Hauptbereich, in Dokumentreihenfolge. */
 export function visibleKeys(): string[] {
-  return [...document.querySelectorAll<HTMLElement>("main [data-task-key]")]
-    .filter((el) => el.offsetParent !== null)
-    .map((el) => el.dataset.taskKey!)
-    .filter((k, i, all) => all.indexOf(k) === i);
+  return visibleElements().map((el) => el.dataset.taskKey!);
+}
+
+/**
+ * Erste Zeile des nächsten (`dir` = 1) bzw. vorigen (-1) Abschnitts, ausgehend von `from`.
+ * Abschnitt ist die umgebende Karte; in „Demnächst“ also ein Tag.
+ */
+export function sectionKey(from: string | null, dir: 1 | -1): string | null {
+  const els = visibleElements();
+  if (!els.length) return null;
+  const sec = (el: HTMLElement) => el.closest("section") ?? el.parentElement;
+  const firsts: HTMLElement[] = [];
+  for (const el of els) if (!firsts.length || sec(firsts[firsts.length - 1]) !== sec(el)) firsts.push(el);
+  const cur = from ? els.find((el) => el.dataset.taskKey === from) : undefined;
+  if (!cur) return (dir > 0 ? firsts[0] : firsts[firsts.length - 1]).dataset.taskKey!;
+  const i = firsts.findIndex((el) => sec(el) === sec(cur));
+  const next = firsts[Math.min(firsts.length - 1, Math.max(0, i + dir))];
+  return next.dataset.taskKey!;
+}
+
+function scrollParent(el: HTMLElement | null): HTMLElement {
+  for (let e = el?.parentElement; e && e.tagName !== "MAIN"; e = e.parentElement) {
+    const o = getComputedStyle(e).overflowY;
+    if ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight) return e;
+  }
+  return document.querySelector("main")!;
+}
+
+/** Halbe Seite weiter (`dir` = 1) bzw. zurück und die erste dann sichtbare Zeile wählen (wie Ctrl+d/u in Vim). */
+export function halfPage(from: string | null, dir: 1 | -1): string | null {
+  const els = visibleElements();
+  if (!els.length) return null;
+  const cur = from ? els.find((el) => el.dataset.taskKey === from) : undefined;
+  const box = scrollParent(cur ?? els[0]);
+  const before = box.scrollTop;
+  box.scrollBy({ top: (dir * box.clientHeight) / 2 });
+  const moved = box.scrollTop !== before;
+  const top = box.getBoundingClientRect().top + (box.tagName === "MAIN" ? 40 : 0);
+  const inBox = els.filter((el) => box.contains(el));
+  // Ließ sich nicht mehr scrollen: an den Anfang bzw. das Ende
+  const hit = moved ? inBox.find((el) => el.getBoundingClientRect().top >= top) : dir > 0 ? inBox[inBox.length - 1] : inBox[0];
+  return (hit ?? inBox[0] ?? els[0]).dataset.taskKey!;
 }
 
 export function scrollToKey(key: string) {
@@ -29,20 +93,51 @@ export function scrollToKey(key: string) {
   el?.scrollIntoView({ block: "nearest" });
 }
 
-export const SHORTCUTS: [string, string][] = [
-  ["j / k", "Auswahl nach unten / oben"],
-  ["x", "abhaken"],
-  ["t", "für heute planen (⏳), nochmal: entfernen"],
-  ["d", "Datum wählen (⏳)"],
-  ["1 / 2 / 0", "Priorität ⏫ / 🔼 / keine"],
-  ["s", "in Arbeit ([/]), nochmal: wieder offen"],
-  ["o", "in Obsidian öffnen"],
-  ["f", "Fokus-Timer starten"],
-  ["/", "Suche"],
-  ["q", "Schnelleingabe"],
-  ["g h · g d · g p · g j · g n", "Heute · Dashboard · Projekte · Jira · Demnächst"],
-  ["Esc", "Auswahl aufheben, Dialog schließen"],
-  ["?", "diese Übersicht"],
+/** Tastenübersicht in Gruppen; die Belegung folgt Omarchy: SUPER bleibt Hyprland, sonst Vim-Muster. */
+export const SHORTCUT_GROUPS: [string, [string, string][]][] = [
+  [
+    "Ansichten",
+    [
+      ["Alt+1 … Alt+5", "Heute · Dashboard · Demnächst · Projekte · Jira"],
+      ["Alt+6 … Alt+9", "eigene Filter in der Reihenfolge der Seitenleiste"],
+      ["Ctrl+Tab · Ctrl+Shift+Tab", "nächste / vorige Ansicht"],
+      ["L · H", "nächste / vorige Ansicht"],
+      ["g h · g d · g n · g p · g j", "Heute · Dashboard · Demnächst · Projekte · Jira"],
+    ],
+  ],
+  [
+    "Bewegen",
+    [
+      ["j / k", "nächste / vorige Zeile"],
+      ["J / K", "nächster / voriger Abschnitt (in Demnächst: Tag)"],
+      ["g g · G", "erste / letzte Zeile"],
+      ["Ctrl+d · Ctrl+u", "halbe Seite nach unten / oben"],
+      ["Enter", "Aufgabe oder Projekt in Obsidian öffnen"],
+      ["Esc", "Auswahl aufheben, Dialog schließen"],
+    ],
+  ],
+  [
+    "Aufgabe",
+    [
+      ["x", "abhaken"],
+      ["t", "für heute planen (⏳), nochmal: entfernen"],
+      ["d", "Datum wählen (⏳)"],
+      ["1 / 2 / 0", "Priorität ⏫ / 🔼 / keine"],
+      ["s", "in Arbeit ([/]), nochmal: wieder offen"],
+      ["o", "in Obsidian öffnen"],
+      ["f", "Fokus-Timer starten"],
+    ],
+  ],
+  [
+    "Allgemein",
+    [
+      [": · Ctrl+K", "Befehlspalette: Ansichten, Filter, Projekte, Aktionen"],
+      ["/", "Suche"],
+      ["q", "Schnelleingabe"],
+      ["Ctrl+,", "Einstellungen (darin Ctrl+Tab bzw. H / L: Reiter wechseln)"],
+      ["?", "diese Übersicht"],
+    ],
+  ],
 ];
 
 export function ShortcutHelp({ hotkey, onClose }: { hotkey: string | null; onClose: () => void }) {
@@ -55,24 +150,41 @@ export function ShortcutHelp({ hotkey, onClose }: { hotkey: string | null; onClo
             ✕
           </button>
         </header>
-        <table>
-          <tbody>
-            {SHORTCUTS.map(([k, d]) => (
-              <tr key={k}>
-                <td>
-                  <kbd>{k}</kbd>
-                </td>
-                <td>{d}</td>
-              </tr>
-            ))}
-            <tr>
-              <td>
-                <kbd>{hotkey || "aus"}</kbd>
-              </td>
-              <td>global: Schnellerfassung, auch wenn die App im Hintergrund ist</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="shortcut-groups">
+          {SHORTCUT_GROUPS.map(([title, rows]) => (
+            <section key={title}>
+              <h3>{title}</h3>
+              <table>
+                <tbody>
+                  {rows.map(([k, d]) => (
+                    <tr key={k}>
+                      <td>
+                        <kbd>{k}</kbd>
+                      </td>
+                      <td>{d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ))}
+          <section>
+            <h3>Global</h3>
+            <table>
+              <tbody>
+                <tr>
+                  <td>
+                    <kbd>{hotkey || "tasker-md --quick"}</kbd>
+                  </td>
+                  <td>
+                    Schnellerfassung, auch wenn die App im Hintergrund ist
+                    {!hotkey && " (unter Wayland an eine Compositor-Taste binden, z. B. SUPER+ALT+T)"}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
       </div>
     </div>
   );

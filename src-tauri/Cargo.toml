@@ -18,7 +18,7 @@ tauri = { version = "2", features = ["tray-icon"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-notify-debouncer-mini = "0.7"
+notify-debouncer-mini = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 # Linux: Secret Service (GNOME Keyring, KWallet, KeePassXC); ohne das Backend würde nichts gespeichert
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service", "crypto-rust"] }
